@@ -1,7 +1,7 @@
 import pytest
 from config.login import Login
-from pages.host_page import ExitPersonalAccount
-from pages.online_tab import ClickButtonExit
+from pages.authorization_page import AuthorizationPersonalAccount
+from pages.online_tab import OnlineTab
 
 
 
@@ -11,8 +11,9 @@ class BaseTest:
 
     login: Login
 
-    host_page: ExitPersonalAccount
-    online_tab: ClickButtonExit
+    authorization_page: AuthorizationPersonalAccount
+    online_tab: OnlineTab
+
 
 
     # создаем фикстуру
@@ -22,5 +23,5 @@ class BaseTest:
         request.cls.driver = driver
         request.cls.login = Login()
 
-        request.cls.host_page = ExitPersonalAccount(driver)
-        request.cls.online_tab = ClickButtonExit(driver)
+        request.cls.authorization_page = AuthorizationPersonalAccount(driver)
+        request.cls.online_tab = OnlineTab(driver)

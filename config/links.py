@@ -4,6 +4,7 @@ class Links:
 
     HOST_PAGE = "https://x.camdrive.com/"
     ONLINE_TAB = f"{HOST_PAGE}/online?login"
+    FORGOT_PASSWORD = f"{HOST_PAGE}/login/password"
     ARCHIVE_TAB = f"{HOST_PAGE}/archive"
     SETTING_TARIFFS_TAB = f"{HOST_PAGE}/settings/tariffs"
     SETTING_SCHEDULE_TAB = f"{HOST_PAGE}/settings/schedule"
