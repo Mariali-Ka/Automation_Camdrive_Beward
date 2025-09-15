@@ -11,7 +11,7 @@ from base.base_test import BaseTest
 @allure.feature("Profile Functionality")
 class TestAuthorizationPersonalAccount(BaseTest):
 
-    @allure.title("Exit personal account")
+    @allure.title("Authorization personal account")
     @allure.severity("Critical")
     @pytest.mark.smoke
     def test_authorization_personal_account(self):
@@ -30,6 +30,7 @@ class TestAuthorizationPersonalAccount(BaseTest):
         self.authorization_page.checkbox_remember_me()
         self.authorization_page.click_enter_button()
         self.online_tab.is_opened_online_tab()
+
 
 
 
