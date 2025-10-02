@@ -3,14 +3,14 @@ from selenium.webdriver import ActionChains
 from allure_commons.types import AttachmentType
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-# from selenium.webdriver.common.action_chains import ActionChains
+
 
 class BasePage:
 
     def __init__(self, driver):
         self.driver = driver
         self.wait = WebDriverWait(driver, 10, poll_frequency=1)
-        # self.action = ActionChains(driver)
+
 
 
     # открываем страницу
@@ -95,3 +95,8 @@ class BasePage:
     def remove_footer(self):
             self.driver.execute_script("document.getElementsByTagName('footer')[0].remove();")
             self.driver.execute_script("document.getElementsById('close-fixedban').remove();")
+
+    # @allure.step('Open new window')
+    # def open_new_window(self):
+    #     self.driver.new_window("tab")
+    #     self.driver.get("https://x.camdrive.com/")

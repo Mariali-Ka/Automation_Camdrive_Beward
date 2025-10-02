@@ -1,4 +1,5 @@
 import random
+import time
 import allure
 from base.base_page import BasePage
 from config.links import Links
@@ -12,6 +13,7 @@ class AuthorizationPersonalAccount(BasePage):
 
     LOGIN_FIELD = ("xpath", "//input[@class='input']")  # поле для ввода login
     PASSWORD_FIELD = ("xpath", "//input[@class='input password']")  # поле для ввода password
+    NAME_PASSWORD = ("xpath", "//input[@class='password-showing']") #  заполненное поле паролем
     LINK_FORGOT_PASSWORD = ("xpath", "//a[text()='Забыли пароль?']")  # ссылка восстановление пароля
     BUTTON_CANCEL_FORGOT_PASSWORD = ("xpath", "//input[@value='Отменить']")  # отменить восстановление пароля
     EYE_BUTTON = ("xpath", "//div[@title='Показать пароль']")  # кнопка глаз
@@ -23,10 +25,16 @@ class AuthorizationPersonalAccount(BasePage):
     @allure.step("Click Link Forgot Password")
     def click_link_forgot_password(self):
         self.wait.until(EC.element_to_be_clickable(self.LINK_FORGOT_PASSWORD)).click()
+        url = self.PAGE_URL
+        assert not url == Links.FORGOT_PASSWORD, "Ошибка в URL, открыта не та страница"
+
 
     @allure.step("Click Button Cancel Forgot Password")
     def click_button_cancel_forgot_password(self):
         self.wait.until(EC.element_to_be_clickable(self.BUTTON_CANCEL_FORGOT_PASSWORD)).click()
+        url = self.PAGE_URL
+        assert url == Links.HOST_PAGE, "Ошибка в URL, открыта не та страница"
+
 
     @allure.step("Enter login")
     def enter_login(self, login):
@@ -44,13 +52,18 @@ class AuthorizationPersonalAccount(BasePage):
 
     @allure.step("Delete wrong password")
     def delete_wrong_password(self):
-        delete_wrong_password = self.wait.until(EC.element_to_be_clickable(self.PASSWORD_FIELD))
+        delete_wrong_password = self.wait.until(EC.element_to_be_clickable(self.NAME_PASSWORD))
         delete_wrong_password.send_keys(Keys.CONTROL + "A")
         delete_wrong_password.send_keys(Keys.BACKSPACE)
+
 
     @allure.step("Enter password")
     def enter_password(self, password):
         self.wait.until(EC.element_to_be_clickable(self.PASSWORD_FIELD)).send_keys(password)
+
+    @allure.step("Enter password")
+    def showing_enter_password(self, password):
+        self.wait.until(EC.element_to_be_clickable(self.NAME_PASSWORD)).send_keys(password)
 
     @allure.step("Click Eye Button")
     def click_eye_button(self):
@@ -63,3 +76,40 @@ class AuthorizationPersonalAccount(BasePage):
     @allure.step("Click enter button")
     def click_enter_button(self):
         self.wait.until(EC.element_to_be_clickable(self.ENTER_BUTTON)).click()
+
+    @allure.step("Negative authorization")
+    def negative_authorization(self):
+        information_incorrect_data = self.wait.until(EC.visibility_of_element_located(self.INFORMATION_INCORRECT_DATA))
+        print("Появляется сообщение:", information_incorrect_data.text)
+        time.sleep(2)
+
+        url = self.PAGE_URL
+        print("Отображается форма авторизации на странице URL:", url)
+        assert url == Links.HOST_PAGE, "Ошибка в URL, открыта не та страница"
+
+    @allure.step("Five wrong attempts")
+    def five_wrong_attempts(self):
+        for _ in range(6):
+            try:
+                enter_button = self.wait.until(EC.element_to_be_clickable(self.ENTER_BUTTON))
+                enter_button.click()
+                print("Кнопка нажата")
+                time.sleep(1)
+            except:
+                print("Кнопка не найдена или неактивна")
+                break
+
+
+        for _ in range(5):
+            try:
+                information_incorrect_data = self.wait.until(EC.visibility_of_element_located(self.INFORMATION_INCORRECT_DATA))
+                close_information_incorrect_data = self.wait.until(EC.element_to_be_clickable(self.CLOSE_INFORMATION_INCORRECT_DATA))
+                close_information_incorrect_data.click()
+                print("Появляется сообщение:", information_incorrect_data.text)
+                time.sleep(1)
+            except:
+             break
+
+
+
+
