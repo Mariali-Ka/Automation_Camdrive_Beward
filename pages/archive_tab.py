@@ -24,19 +24,20 @@ chrome_options.add_experimental_option('useAutomationExtension', False)
 class ArchiveTab(BasePage):
     PAGE_URL = Links.ARCHIVE_TAB
 
-    TAB_ARCHIVE = ("xpath", "//a[text()='Архив']")
-    FIELD_CALENDAR = ("xpath", "//div[text()='Календарь']")
-    OPENING_CALENDAR = ("xpath", "//img[@alt='Выберите дату']")
-    OPENING_CALENDAR_MONTH_AGO = ("xpath", "//a[@title='<Пред']")
-    SELECT_DAY_OPENING_CALENDAR = ("xpath", "//td[@data-handler='selectDay']")
-    FIELD_INPUT_DATE = ("xpath", "//input[@id='download-date']")
-    HEADING_C = ("xpath", "//th[@class='heading-c']")
-    HEADING_l = ("xpath", "//th[@class='heading-l prev']")
-    HEADING_R = ("xpath", "//th[@class='heading-r off']")
-    HEADING_R_NEXT = ("xpath", "//th[@class='heading-r next']")
-    ALL_CELLS_WITH_DAYS_CALENDAR = ("xpath", "//div[@class='item day']")  # все ячейки с днями в календаре
-    ALL_CELLS_WITH_VIEWING_RECORDS = ("xpath", "//div[@class='time item  constant']")  # все ячейки с днями в календаре
-    PLAY_VIDEO_WINDOW = ("xpath", "//video[@preload='auto']")
+    TAB_ARCHIVE = ("xpath", "//a[text()='Архив']") # вкладка Архив
+    FIELD_CALENDAR = ("xpath", "//div[text()='Календарь']") # меню Календарь - текст
+    BUTTON_OPENING_CALENDAR = ("xpath", "//img[@alt='Выберите дату']") # кнопка Открыть дату в блоке Скачать видеоархив
+    BUTTON_OPENING_CALENDAR_MONTH_AGO = ("xpath", "//a[@title='<Пред']") # кнопка перейти на предыдущий месяц в календаре Открытой даты в блоке Скачать видеоархив
+    SELECT_DAY_OPENING_CALENDAR = ("xpath", "//td[@data-handler='selectDay']") # ячейка день в календаре Открытой даты в блоке Скачать видеоархив
+    FIELD_INPUT_DATE = ("xpath", "//input[@id='download-date']") # поле ввода даты в блоке Скачать видеоархив
+    HEADING_C = ("xpath", "//th[@class='heading-c']") # заголовок месяца и года в блоке Календарь
+    BUTTON_HEADING_l = ("xpath", "//th[@class='heading-l prev']") # кнопка открыть предыдущий месяц в блоке Календарь
+    BUTTON_HEADING_R = ("xpath", "//th[@class='heading-r off']") # дизабленная кнопка открыть будущий месяц после текущего месяца в блоке Календарь
+    BUTTON_HEADING_R_NEXT = ("xpath", "//th[@class='heading-r next']") # кнопка открытия следующего месяца до текущего месяца в блоке Календарь
+    DATE_CALENDAR_WITH_RECORDING = ("xpath", "//td//div[contains(@class, 'item day')]")  # дата с записями в блоке календарь
+    SEGMENT_RECORDING = ("xpath", "//div[@class='time item  constant']")  # отрезок записи в блоке Календарь
+    PLAY_VIDEO_WINDOW = ("xpath", "//video[@preload='auto']") # трансляция видеозаписи в блоке Экран
+    ACTIVE_CAMERAS_INSIDE_LIST = ("xpath", "//li[contains(@class, 'access_camera')][not(contains(@class, 'device_disconnect'))]") # активные камеры внутри списка дерева
 
     # ОТКРЫВАЕМ ВКЛАДКУ АРХИВ
     @allure.step("Go to archive tab")
@@ -57,7 +58,7 @@ class ArchiveTab(BasePage):
         current_month_text = month_header.text.strip()
         print(f"Исходный месяц: {current_month_text}")
         # Переход на предыдущий месяц
-        self.wait.until(EC.element_to_be_clickable(self.HEADING_l)).click()
+        self.wait.until(EC.element_to_be_clickable(self.BUTTON_HEADING_l)).click()
         self.wait.until(lambda driver: self.wait.until(
             EC.presence_of_element_located(self.HEADING_C)).text.strip() != current_month_text)
         # Проверка - действительно осуществлен переход, название месяца сменился
@@ -69,19 +70,19 @@ class ArchiveTab(BasePage):
     # ПЕРЕХОД НА БУДУЩИЙ МЕСЯЦ
     @allure.step("Go to one month advance calendar")
     def click_go_to_one_month_advance_calendar(self):
-        self.wait.until(EC.element_to_be_clickable(self.HEADING_R_NEXT)).click()
+        self.wait.until(EC.element_to_be_clickable(self.BUTTON_HEADING_R_NEXT)).click()
 
     # ОТКРЫТИЕ КАЛЕНДАРЯ на зоне- ЗОНА СКАЧИВАНИЯ ВИДЕОАРХИВА
     @allure.step("Checking opening calendar")
     def click_checking_opening_calendar(self):
-        self.wait.until(EC.element_to_be_clickable(self.OPENING_CALENDAR)).click()
+        self.wait.until(EC.element_to_be_clickable(self.BUTTON_OPENING_CALENDAR)).click()
         # проверка, что календарь открыт
-        assert self.wait.until(EC.visibility_of_element_located(self.OPENING_CALENDAR)).is_displayed()
+        assert self.wait.until(EC.visibility_of_element_located(self.BUTTON_OPENING_CALENDAR)).is_displayed()
 
     # ПРОВЕРКА ВВОДА В ПОЛЕ ДАТА - ЗОНА СКАЧИВАНИЯ ВИДЕОАРХИВА
     allure.step("Selected date displayed field")
     def selected_date_displayed_field(self):
-        self.wait.until(EC.element_to_be_clickable(self.OPENING_CALENDAR_MONTH_AGO)).click()
+        self.wait.until(EC.element_to_be_clickable(self.BUTTON_OPENING_CALENDAR_MONTH_AGO)).click()
         # Получаем список активных дней
         select_day_elements = self.wait.until(EC.visibility_of_all_elements_located(self.SELECT_DAY_OPENING_CALENDAR))
         # Фильтруем только активные/валидные дни
@@ -101,11 +102,39 @@ class ArchiveTab(BasePage):
         # Проверяем формат даты
         assert re.match(r"\d{2}\.\d{2}\.\d{4}", selected_date)
 
+    # ПОЛУЧЕНИЕ СПИСКА КАМЕР. ВЫБОР ИЗ СПИСКА АКТИВНЫЕ КАМЕРЫ. РАНДОМНО НАЖАТЬ НА АКТИВНУЮ КАМЕРУ.
+    allure.step("Active cameras inside list")
+    def active_cameras_inside_list(self):
+        try:
+
+            active_cameras = self.wait.until(EC.presence_of_all_elements_located(self.ACTIVE_CAMERAS_INSIDE_LIST))
+
+            if not active_cameras:
+                print("Активных камер не найдено.")
+            else:
+                # Рандомно выбираем одну активную камеру
+                random_camera = random.choice(active_cameras)
+                time.sleep(5)
+
+                # Кликаем по ней
+                random_camera.click()
+                time.sleep(5)
+
+                print("Случайная активная камера выбрана и нажата.")
+
+        except Exception as e:
+            print(f"Произошла ошибка: {e}")
+
+        finally:
+            pass
+
+
+
     # ПРОВЕРКА ВОСПРОИЗВЕДЕНИЯ ЗАПИСИ
     allure.step("Viewing from camera")
     def viewing_from_camera(self):
 
-        day_elements = self.wait.until(EC.visibility_of_all_elements_located(self.ALL_CELLS_WITH_DAYS_CALENDAR))
+        day_elements = self.wait.until(EC.visibility_of_all_elements_located(self.DATE_CALENDAR_WITH_RECORDING))
 
         # Фильтруем только активные/валидные дни
         valid_days = []
@@ -119,7 +148,7 @@ class ArchiveTab(BasePage):
         random_valid_days.click()
 
         try:
-            records = self.wait.until(EC.visibility_of_all_elements_located(self.ALL_CELLS_WITH_VIEWING_RECORDS))
+            records = self.wait.until(EC.visibility_of_all_elements_located(self.SEGMENT_RECORDING))
 
             if not records:
                 print("Записи не найдены!")

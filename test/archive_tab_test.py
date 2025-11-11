@@ -53,5 +53,6 @@ class TestArchiveTab(BaseTest):
         self.authorization_page.enter_password(self.login.PASSWORD)
         self.authorization_page.click_enter_button()
         self.archive_tab.click_go_to_archive_tab()
+        self.archive_tab.active_cameras_inside_list()
         self.archive_tab.viewing_from_camera()
      

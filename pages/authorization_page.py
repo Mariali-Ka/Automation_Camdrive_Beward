@@ -19,64 +19,73 @@ class AuthorizationPersonalAccount(BasePage):
     EYE_BUTTON = ("xpath", "//div[@title='Показать пароль']")  # кнопка глаз
     CHECKBOX_REMEMBER_ME = ("xpath", "//input[@type='checkbox']")  # чек-бокс Запомнить меня
     ENTER_BUTTON = ("xpath", "//*[@id='login']")  # кнопка Войти
-    INFORMATION_INCORRECT_DATA = ("xpath", "//div[@class='closable notification s error']")
-    CLOSE_INFORMATION_INCORRECT_DATA = ("xpath", "//a[@class='close']")
+    INFORMATION_INCORRECT_DATA = ("xpath", "//div[@class='closable notification s error']") # сообщение о неверном вводе логина/пароля
+    CLOSE_INFORMATION_INCORRECT_DATA = ("xpath", "//a[@class='close']") # кнопка Закрыть сообщение о неверном вводе логина/пароля
 
+    # НАЖАТЬ НА ССЫЛКУ ЗАБЫЛИ ПАРОЛЬ. ПРОВЕРКА ОТКРЫТИЯ ССЫЛКИ
     @allure.step("Click Link Forgot Password")
     def click_link_forgot_password(self):
         self.wait.until(EC.element_to_be_clickable(self.LINK_FORGOT_PASSWORD)).click()
         url = self.PAGE_URL
         assert not url == Links.FORGOT_PASSWORD, "Ошибка в URL, открыта не та страница"
 
-
+    # НАЖАТЬ НА КНОПКУ "ОТМЕНИТЬ" НА ЭКРАНЕ ВОССТАНОВЛЕНИЕ ПАРОЛЯ. ПРОВЕРКА, ЧТО ОТКРЫТА ФОРМА АВТОРИЗАЦИИ
     @allure.step("Click Button Cancel Forgot Password")
     def click_button_cancel_forgot_password(self):
         self.wait.until(EC.element_to_be_clickable(self.BUTTON_CANCEL_FORGOT_PASSWORD)).click()
         url = self.PAGE_URL
         assert url == Links.HOST_PAGE, "Ошибка в URL, открыта не та страница"
 
-
+    # В ПОЛЕ ДОГИН ВВОДИМ ЛОГИН
     @allure.step("Enter login")
     def enter_login(self, login):
         self.wait.until(EC.element_to_be_clickable(self.LOGIN_FIELD)).send_keys(login)
 
+    # ВВОД НЕВЕРНОГО ПАРОЛЯ
     def enter_wrong_password(self, wrong_password):
         with allure.step(f"enter_wrong_password '{wrong_password}"):
             first_password_field = self.wait.until(EC.element_to_be_clickable(self.PASSWORD_FIELD))
             first_password_field.send_keys(wrong_password)
             self.password = wrong_password
 
+    # ЗАКРЫТЬ ИНФОРМАЦИЮ НЕВЕРНЫЕ ДАННЫЕ
     @allure.step("Close information incorrect data")
     def close_information_incorrect_data(self):
         self.wait.until(EC.element_to_be_clickable(self.CLOSE_INFORMATION_INCORRECT_DATA)).click()
 
+    # УДАЛЕНИЕ ВВЕДЕННЫХ ДАННЫХ В ПОЛЕ ПАРОЛЬ
     @allure.step("Delete wrong password")
     def delete_wrong_password(self):
         delete_wrong_password = self.wait.until(EC.element_to_be_clickable(self.NAME_PASSWORD))
         delete_wrong_password.send_keys(Keys.CONTROL + "A")
         delete_wrong_password.send_keys(Keys.BACKSPACE)
 
-
+    # ВВОД В ПОЛЕ ПАРОЛЬ ВАЛИДНЫЙ ПАРОЛЬ
     @allure.step("Enter password")
     def enter_password(self, password):
         self.wait.until(EC.element_to_be_clickable(self.PASSWORD_FIELD)).send_keys(password)
 
+    # ЗАПОЛНЕННОЕ ПОЛЕ ПАРОЛЬ ВАЛИДНЫМ ПАРОЛЕМ
     @allure.step("Enter password")
     def showing_enter_password(self, password):
         self.wait.until(EC.element_to_be_clickable(self.NAME_PASSWORD)).send_keys(password)
 
+    # НАЖАТЬ НА КНОПКУ ГЛАЗ
     @allure.step("Click Eye Button")
     def click_eye_button(self):
         self.wait.until(EC.element_to_be_clickable(self.EYE_BUTTON)).click()
 
+    # НАЖАТЬ НА ЧЕК-БОКС ЗАПОМНИТЬ МЕНЯ
     @allure.step("Checkbox Remember Me")
     def checkbox_remember_me(self):
         self.wait.until(EC.element_to_be_clickable(self.CHECKBOX_REMEMBER_ME)).click()
 
+    # НАЖАТЬ НА КНОПКУ ВОЙТИ
     @allure.step("Click enter button")
     def click_enter_button(self):
         self.wait.until(EC.element_to_be_clickable(self.ENTER_BUTTON)).click()
 
+    # ПРОВЕРКА ПОЯВЛЕНИЯ СООБЩЕНИЯ НЕВЕРНОЙ АВТОРИЗАЦИИ. ПРОВЕРКА, ЧТО ОТКРЫТА ФОРМА АВТОРИЗАЦИИ
     @allure.step("Negative authorization")
     def negative_authorization(self):
         information_incorrect_data = self.wait.until(EC.visibility_of_element_located(self.INFORMATION_INCORRECT_DATA))
@@ -87,6 +96,7 @@ class AuthorizationPersonalAccount(BasePage):
         print("Отображается форма авторизации на странице URL:", url)
         assert url == Links.HOST_PAGE, "Ошибка в URL, открыта не та страница"
 
+    # 5 ПОПЫТОК НЕКОРРЕКТНОЙ АВТОРИЗАЦИИ. ПРОВЕРКА ПОЯВЛЕНИЯ ПРЕДУПРЕЖДАЮЩЕГО СООБЩЕНИЯ ПОСЛЕ 5 ПОПЫТОК.
     @allure.step("Five wrong attempts")
     def five_wrong_attempts(self):
         for _ in range(6):
