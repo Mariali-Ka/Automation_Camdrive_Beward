@@ -47,12 +47,22 @@ class TestArchiveTab(BaseTest):
         self.archive_tab.selected_date_displayed_field()
 
     @pytest.mark.smoke
-    def test_viewing_from_camera(self):
+    def test_viewing_fragment_from_camera(self):
         self.authorization_page.open()
         self.authorization_page.enter_login(self.login.LOGIN)
         self.authorization_page.enter_password(self.login.PASSWORD)
         self.authorization_page.click_enter_button()
         self.archive_tab.click_go_to_archive_tab()
         self.archive_tab.active_cameras_inside_list()
-        self.archive_tab.viewing_from_camera()
+        self.archive_tab.viewing_fragment_from_camera()
+
+    @pytest.mark.smoke
+    def test_checking_autoplayback_fragments_from_camera(self):
+        self.authorization_page.open()
+        self.authorization_page.enter_login(self.login.LOGIN)
+        self.authorization_page.enter_password(self.login.PASSWORD)
+        self.authorization_page.click_enter_button()
+        self.archive_tab.click_go_to_archive_tab()
+        self.archive_tab.active_cameras_inside_list()
+        self.archive_tab.checking_autoplayback_fragments_from_camera()
      

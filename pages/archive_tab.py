@@ -38,6 +38,11 @@ class ArchiveTab(BasePage):
     SEGMENT_RECORDING = ("xpath", "//div[@class='time item  constant']")  # отрезок записи в блоке Календарь
     PLAY_VIDEO_WINDOW = ("xpath", "//video[@preload='auto']") # трансляция видеозаписи в блоке Экран
     ACTIVE_CAMERAS_INSIDE_LIST = ("xpath", "//li[contains(@class, 'access_camera')][not(contains(@class, 'device_disconnect'))]") # активные камеры внутри списка дерева
+    CHECKBOX_AUTOPLAY = ("xpath", "//input[@type='checkbox']")
+    NAME_CAMERAS_RECORDING_FRAGMENT_VIDEO = ("xpath", "//div[@class='dashboard']")  # наименование камеры воспроизведения  записи фрагмента
+    DATE_RECORDING_FRAGMENT_VIDEO = ("xpath", "//input[@id='download-date']")  # дата записи фрагмента
+    TIME_RECORDING_FRAGMENT_VIDEO = ("xpath", "//input[@id='download-time']")  # время записи фрагмента
+    DURATION_RECORDING_FRAGMENT_VIDEO = ("xpath", "//input[@id='download-duration']")  # время записи фрагмента
 
     # ОТКРЫВАЕМ ВКЛАДКУ АРХИВ
     @allure.step("Go to archive tab")
@@ -72,7 +77,7 @@ class ArchiveTab(BasePage):
     def click_go_to_one_month_advance_calendar(self):
         self.wait.until(EC.element_to_be_clickable(self.BUTTON_HEADING_R_NEXT)).click()
 
-    # ОТКРЫТИЕ КАЛЕНДАРЯ на зоне- ЗОНА СКАЧИВАНИЯ ВИДЕОАРХИВА
+    # ОТКРЫТИЕ КАЛЕНДАРЯ - ЗОНА СКАЧИВАНИЯ ВИДЕОАРХИВА
     @allure.step("Checking opening calendar")
     def click_checking_opening_calendar(self):
         self.wait.until(EC.element_to_be_clickable(self.BUTTON_OPENING_CALENDAR)).click()
@@ -130,9 +135,9 @@ class ArchiveTab(BasePage):
 
 
 
-    # ПРОВЕРКА ВОСПРОИЗВЕДЕНИЯ ЗАПИСИ
-    allure.step("Viewing from camera")
-    def viewing_from_camera(self):
+    # ПРОВЕРКА ВОСПРОИЗВЕДЕНИЯ РАНДОМНО ФРАГМЕНТА ЗАПИСИ
+    allure.step("Viewing fragment from camera")
+    def viewing_fragment_from_camera(self):
 
         day_elements = self.wait.until(EC.visibility_of_all_elements_located(self.DATE_CALENDAR_WITH_RECORDING))
 
@@ -159,6 +164,29 @@ class ArchiveTab(BasePage):
                 self.driver.execute_script("arguments[0].scrollIntoView(true);", random_record)
                 random_record.click()
                 time.sleep(5)
+
+                # Ждём, пока обновятся поля под видео
+                try:
+
+                    camera_name = self.wait.until(EC.presence_of_element_located(self.NAME_CAMERAS_RECORDING_FRAGMENT_VIDEO)).text
+                    date_elem = self.wait.until(EC.presence_of_element_located(self.DATE_RECORDING_FRAGMENT_VIDEO))
+                    time_elem = self.wait.until(EC.presence_of_element_located(self.TIME_RECORDING_FRAGMENT_VIDEO))
+                    duration_elem = self.wait.until(EC.presence_of_element_located(self.DURATION_RECORDING_FRAGMENT_VIDEO))
+
+                    # Извлечение данных из полей
+                    date_from_field = date_elem.text or date_elem.get_attribute("value") or "неизвестно"
+                    time_from_field = time_elem.text or time_elem.get_attribute("value") or "неизвестно"
+                    duration_from_field = duration_elem.text or duration_elem.get_attribute("value") or "неизвестно"
+
+                    # Вывод информации
+                    print("=" * 50)
+                    print(f"Камера: {camera_name}")
+                    print(f"Дата (из поля): {date_from_field}")
+                    print(f"Время (из поля): {time_from_field}")
+                    print(f"Длительность (из поля): {duration_from_field}")
+                    print("=" * 50)
+                except TimeoutException:
+                    print("Не удалось получить данные из полей под видео.")
 
                 # Попробуем получить video_element
             try:
@@ -200,6 +228,119 @@ class ArchiveTab(BasePage):
             watch_time = end_time - start_time
 
             print(f"Время просмотра: {watch_time:.2f} секунд")
+
+        finally:
+            self.driver.quit()
+
+    # ПРОВЕРКА АВТОВОСПРОИЗВЕДЕНИЯ РАНДОМНО ЧЕТЫРЕХ ФРАГМЕНТОВ ЗАПИСИ
+    allure.step("Checking auto-playback fragments from camera")
+    def checking_autoplayback_fragments_from_camera(self):
+        try:
+
+            day_elements = self.wait.until(EC.visibility_of_all_elements_located(self.DATE_CALENDAR_WITH_RECORDING))
+
+            valid_days = []
+            for day in day_elements:
+                if "disabled" not in day.get_attribute("class") and day.text.strip().isdigit():
+                    valid_days.append(day)
+
+            print("Валидные дни:", [d.text for d in valid_days])
+
+            random_valid_days = random.choice(day_elements)
+            random_valid_days.click()
+
+            # Нажать чекбокс "Автовоспроизведение"
+            autoplay_checkbox = self.wait.until(EC.element_to_be_clickable(self.CHECKBOX_AUTOPLAY))
+            if not autoplay_checkbox.is_selected():
+                autoplay_checkbox.click()
+
+            # Выбрать рандомную запись
+            records = self.wait.until(EC.visibility_of_all_elements_located(self.SEGMENT_RECORDING))
+
+            if not records:
+                print("Записи не найдены!")
+            else:
+                print(f"Найдено записей: {len(records)}")
+
+                # Начальная запись
+                start_record = random.choice(records)
+                self.driver.execute_script("arguments[0].scrollIntoView(true);", start_record)
+                start_record.click()
+                time.sleep(5)
+
+                # Список следующих 3 записей
+                start_index = records.index(start_record)
+                next_records = records[start_index + 1:start_index + 4]
+
+                # Воспроизводим начальную и следующие 3
+                all_records_to_watch = [start_record] + next_records
+
+                for record in all_records_to_watch:
+                    record.click()
+                    time.sleep(2)
+                    #  Ждём, пока обновятся поля под видео
+                    try:
+
+                        camera_name = self.wait.until(EC.presence_of_element_located(self.NAME_CAMERAS_RECORDING_FRAGMENT_VIDEO)).text
+                        date_elem = self.wait.until(EC.presence_of_element_located(self.DATE_RECORDING_FRAGMENT_VIDEO))
+                        time_elem = self.wait.until(EC.presence_of_element_located(self.TIME_RECORDING_FRAGMENT_VIDEO))
+                        duration_elem = self.wait.until(EC.presence_of_element_located(self.DURATION_RECORDING_FRAGMENT_VIDEO))
+
+                        #  Извлечение данных из полей
+                        date_from_field = date_elem.text or date_elem.get_attribute("value") or "неизвестно"
+                        time_from_field = time_elem.text or time_elem.get_attribute("value") or "неизвестно"
+                        duration_from_field = duration_elem.text or duration_elem.get_attribute("value") or "неизвестно"
+
+                        # Вывод информации
+                        print("=" * 50)
+                        print(f"Камера: {camera_name}")
+                        print(f"Дата (из поля): {date_from_field}")
+                        print(f"Время (из поля): {time_from_field}")
+                        print(f"Длительность (из поля): {duration_from_field}")
+                        print("=" * 50)
+                    except TimeoutException:
+                        print("Не удалось получить данные из полей под видео.")
+
+                    # Ожидаем видеоэлемент
+                    try:
+                        video_element = self.wait.until(EC.presence_of_element_located(self.PLAY_VIDEO_WINDOW))
+                        print("Видео найдено и готово к воспроизведению.")
+
+                        # Ждём, пока появится длительность
+                        for _ in range(20):
+                            try:
+                                duration = self.driver.execute_script("return arguments[0].duration;", video_element)
+                                if duration and duration > 0:
+                                    print(f"Длительность видео: {duration:.2f} секунд")
+                                    break
+                            except Exception as e:
+                                print(f"Ошибка получения длительности: {e}")
+                            time.sleep(1)
+
+                        if not duration or duration <= 0:
+                            raise Exception("Не удалось определить длительность видео")
+
+                        # Ждём окончания воспроизведения
+                        start_time = time.time()
+                        while True:
+                            try:
+                                current_time = self.driver.execute_script("return arguments[0].currentTime;", video_element)
+                                if current_time >= duration - 1:  # погрешность
+                                    print("Видео полностью воспроизведено.")
+                                    break
+                            except Exception as e:
+                                print(f"Ошибка получения текущего времени: {e}")
+                            time.sleep(1)
+
+                        end_time = time.time()
+                        watch_time = end_time - start_time
+
+
+
+                    except TimeoutException:
+                        print("Видео не загрузилось, пропускаем...")
+
+
 
         finally:
             self.driver.quit()
