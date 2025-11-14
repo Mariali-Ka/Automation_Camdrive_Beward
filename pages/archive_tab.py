@@ -32,14 +32,14 @@ class ArchiveTab(BasePage):
     FIELD_INPUT_DATE = ("xpath", "//input[@id='download-date']") # поле ввода даты в блоке Скачать видеоархив
     HEADING_C = ("xpath", "//th[@class='heading-c']") # заголовок месяца и года в блоке Календарь
     BUTTON_HEADING_l = ("xpath", "//th[@class='heading-l prev']") # кнопка открыть предыдущий месяц в блоке Календарь
-    BUTTON_HEADING_R = ("xpath", "//th[@class='heading-r off']") # дизабленная кнопка открыть будущий месяц после текущего месяца в блоке Календарь
+    BUTTON_HEADING_R = ("xpath", "//th[@class='heading-r off']") # дизаблена кнопка Открыть будущий месяц после текущего месяца в блоке Календарь
     BUTTON_HEADING_R_NEXT = ("xpath", "//th[@class='heading-r next']") # кнопка открытия следующего месяца до текущего месяца в блоке Календарь
     DATE_CALENDAR_WITH_RECORDING = ("xpath", "//td//div[contains(@class, 'item day')]")  # дата с записями в блоке календарь
     SEGMENT_RECORDING = ("xpath", "//div[@class='time item  constant']")  # отрезок записи в блоке Календарь
     PLAY_VIDEO_WINDOW = ("xpath", "//video[@preload='auto']") # трансляция видеозаписи в блоке Экран
     ACTIVE_CAMERAS_INSIDE_LIST = ("xpath", "//li[contains(@class, 'access_camera')][not(contains(@class, 'device_disconnect'))]") # активные камеры внутри списка дерева
-    CHECKBOX_AUTOPLAY = ("xpath", "//input[@type='checkbox']")
-    NAME_CAMERAS_RECORDING_FRAGMENT_VIDEO = ("xpath", "//div[@class='dashboard']")  # наименование камеры воспроизведения  записи фрагмента
+    CHECKBOX_AUTOPLAY = ("xpath", "//input[@type='checkbox']") # чек-бокс автовоспроизведения
+    NAME_CAMERAS_RECORDING_FRAGMENT_VIDEO = ("xpath", "//div[@class='dashboard']")  # наименование камеры воспроизведения записи фрагмента
     DATE_RECORDING_FRAGMENT_VIDEO = ("xpath", "//input[@id='download-date']")  # дата записи фрагмента
     TIME_RECORDING_FRAGMENT_VIDEO = ("xpath", "//input[@id='download-time']")  # время записи фрагмента
     DURATION_RECORDING_FRAGMENT_VIDEO = ("xpath", "//input[@id='download-duration']")  # время записи фрагмента
@@ -147,10 +147,19 @@ class ArchiveTab(BasePage):
             if "disabled" not in day.get_attribute("class") and day.text.strip().isdigit():
                 valid_days.append(day)
 
+        # Выводим список валидных дней один раз
         print("Валидные дни:", [d.text for d in valid_days])
 
-        random_valid_days = random.choice(day_elements)
-        random_valid_days.click()
+        if not valid_days:
+            print("Нет доступных дней для выбора.")
+        else:
+
+            random_valid_day = random.choice(valid_days)
+            self.driver.execute_script("arguments[0].scrollIntoView(true);", random_valid_day)
+            time.sleep(1.5)
+            print(f"Кликаем на день: {random_valid_day.text}")
+            random_valid_day.click()
+            time.sleep(1.5)
 
         try:
             records = self.wait.until(EC.visibility_of_all_elements_located(self.SEGMENT_RECORDING))
@@ -188,7 +197,7 @@ class ArchiveTab(BasePage):
                 except TimeoutException:
                     print("Не удалось получить данные из полей под видео.")
 
-                # Попробуем получить video_element
+                # Пробуем получить video_element
             try:
                 video_element = self.wait.until(EC.presence_of_element_located(self.PLAY_VIDEO_WINDOW))
                 print("Видео найдено и готово к воспроизведению.")
@@ -244,17 +253,26 @@ class ArchiveTab(BasePage):
                 if "disabled" not in day.get_attribute("class") and day.text.strip().isdigit():
                     valid_days.append(day)
 
+            # Выводим список валидных дней один раз
             print("Валидные дни:", [d.text for d in valid_days])
 
-            random_valid_days = random.choice(day_elements)
-            random_valid_days.click()
+            if not valid_days:
+                print("Нет доступных дней для выбора.")
+            else:
+
+                random_valid_day = random.choice(valid_days)
+                self.driver.execute_script("arguments[0].scrollIntoView(true);", random_valid_day)
+                time.sleep(1.5)
+                print(f"Кликаем на день: {random_valid_day.text}")
+                random_valid_day.click()
+                time.sleep(1.5)
 
             # Нажать чекбокс "Автовоспроизведение"
             autoplay_checkbox = self.wait.until(EC.element_to_be_clickable(self.CHECKBOX_AUTOPLAY))
             if not autoplay_checkbox.is_selected():
                 autoplay_checkbox.click()
 
-            # Выбрать рандомную запись
+            # Выбрать рандомно запись
             records = self.wait.until(EC.visibility_of_all_elements_located(self.SEGMENT_RECORDING))
 
             if not records:

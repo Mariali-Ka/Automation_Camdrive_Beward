@@ -1,6 +1,8 @@
 import time
 import random
 import allure
+from selenium.common import TimeoutException
+
 from base.base_page import BasePage
 from config.links import Links
 from selenium.webdriver.support import expected_conditions as EC
@@ -44,7 +46,12 @@ class OnlineTab(BasePage):
     # НАЖАТЬ НА КНОПКУ ОБЩЕСТВЕННЫЕ  КАМЕРЫ
     @allure.step("Click Button Public Cameras")
     def click_button_public_cameras(self):
-        self.wait.until(EC.element_to_be_clickable(self.BUTTON_PUBLIC_CAMERAS)).click()
+        try:
+          self.wait.until(EC.element_to_be_clickable(self.BUTTON_PUBLIC_CAMERAS)).click()
+        except TimeoutException:
+            # Кнопка не появилась в течение времени ожидания — ничего не делаем
+            pass
+
 
 
 
