@@ -26,10 +26,22 @@ class ArchiveTab(BasePage):
 
     TAB_ARCHIVE = ("xpath", "//a[text()='Архив']") # вкладка Архив
     FIELD_CALENDAR = ("xpath", "//div[text()='Календарь']") # меню Календарь - текст
-    BUTTON_OPENING_CALENDAR = ("xpath", "//img[@alt='Выберите дату']") # кнопка Открыть дату в блоке Скачать видеоархив
+    BUTTON_SELECT_DATE_OPENING_CALENDAR = ("xpath", "//img[@alt='Выберите дату']") # кнопка Открыть календарь для выбора даты в блоке Скачать видеоархив
     BUTTON_OPENING_CALENDAR_MONTH_AGO = ("xpath", "//a[@title='<Пред']") # кнопка перейти на предыдущий месяц в календаре Открытой даты в блоке Скачать видеоархив
     SELECT_DAY_OPENING_CALENDAR = ("xpath", "//td[@data-handler='selectDay']") # ячейка день в календаре Открытой даты в блоке Скачать видеоархив
     FIELD_INPUT_DATE = ("xpath", "//input[@id='download-date']") # поле ввода даты в блоке Скачать видеоархив
+    BUTTON_UPLOAD = ("xpath", "//input[@value='Загрузить']")  # кнопка Загрузить в блоке Скачать видеоархив
+    BUTTON_SELECT_TIME_OPENING_CALENDAR = ("xpath", "//img[@alt='Выберите время']")  # кнопка Открыть календарь для выбора времени в блоке Скачать видеоархив
+    BUTTON_SELECT_DURATION_OPENING_CALENDAR = ("xpath", "//img[@alt='Выберите время']")  # кнопка Открыть календарь для выбора длительности в блоке Скачать видеоархив
+    HANDLE_SLIDER_SELECT_TIME_CLOCK = ("xpath", "(//a[contains(@class, 'slider-handle')])[1]")  # ручка слайдера часы в календаре для выбора времени в блоке Скачать видео
+    HANDLE_SLIDER_SELECT_TIME_MINUTES = ("xpath", "(//a[contains(@class, 'slider-handle')])[2]")  # ручка слайдера минуты в календаре для выбора времени в блоке Скачать видео
+    HANDLE_SLIDER_SELECT_DURATION_MINUTES = ("xpath", "(//a[contains(@class, 'slider-handle')])[3]")  # ручка слайдера длительности в календаре для выбора длительности в блоке Скачать видео
+    BUTTON_ANON_SELECT_TIME = ("xpath", "//button[text()='Сейчас']")  # кнопка Сейчас в календаре для выбора времени/длительности в блоке Скачать видео
+    BUTTON_CLOSE_SELECT_TIME = ("xpath", "//button[text()='Закрыть']")  # кнопка Закрыть в календаре для выбора времени/длительности в блоке Скачать видео
+    MESSAGE_DOWNLOAD_ARCHIVE_FRAGMENT = ("xpath", "//div[@role='dialog']")  # сообщение о выбранном для скачивания фрагмента видеоархива в блоке Скачать видео
+    MESSAGE_NO_VIDEO_RECORDING = ("xpath", "//div[@role='dialog' or @text()='Для данного интервала времени нет видеозаписей.']")  # сообщение об отсутствии видеозаписи в блоке Скачать видео
+    BUTTON_OK_MESSAGE = ("xpath", "//span[text()='Ок']")  # кнопка Ок в сообщение о выбранном для скачивания фрагмента видеоархива в блоке Скачать видео
+    BUTTON_CANCEL_MESSAGE = ("xpath", "//span[text()='Отменить']")  # кнопка Отменить в сообщение о выбранном для скачивания фрагмента видеоархива в блоке Скачать видео
     HEADING_C = ("xpath", "//th[@class='heading-c']") # заголовок месяца и года в блоке Календарь
     BUTTON_HEADING_l = ("xpath", "//th[@class='heading-l prev']") # кнопка открыть предыдущий месяц в блоке Календарь
     BUTTON_HEADING_R = ("xpath", "//th[@class='heading-r off']") # дизаблена кнопка Открыть будущий месяц после текущего месяца в блоке Календарь
@@ -80,9 +92,9 @@ class ArchiveTab(BasePage):
     # ОТКРЫТИЕ КАЛЕНДАРЯ - ЗОНА СКАЧИВАНИЯ ВИДЕОАРХИВА
     @allure.step("Checking opening calendar")
     def click_checking_opening_calendar(self):
-        self.wait.until(EC.element_to_be_clickable(self.BUTTON_OPENING_CALENDAR)).click()
+        self.wait.until(EC.element_to_be_clickable(self.BUTTON_SELECT_DATE_OPENING_CALENDAR)).click()
         # проверка, что календарь открыт
-        assert self.wait.until(EC.visibility_of_element_located(self.BUTTON_OPENING_CALENDAR)).is_displayed()
+        assert self.wait.until(EC.visibility_of_element_located(self.BUTTON_SELECT_DATE_OPENING_CALENDAR)).is_displayed()
 
     # ПРОВЕРКА ВВОДА В ПОЛЕ ДАТА - ЗОНА СКАЧИВАНИЯ ВИДЕОАРХИВА
     allure.step("Selected date displayed field")
@@ -106,6 +118,87 @@ class ArchiveTab(BasePage):
         selected_date = self.wait.until(EC.visibility_of_element_located(self.FIELD_INPUT_DATE)).get_attribute("value")
         # Проверяем формат даты
         assert re.match(r"\d{2}\.\d{2}\.\d{4}", selected_date)
+
+    # ВЫБОР ДАТЫ, ВРЕМЯ И ДЛИТЕЛЬНОСТЬ ДЛЯ ЗАГРУЗКИ ФРАГМЕНТА ВИДЕОАРХИВА
+    allure.step("Select the date, time, and duration to download the snippet")
+    def select_date_time_duration_download_snippet(self):
+        try:
+            # Выбор случайной даты в календаре
+            calendar_button = self.wait.until(EC.element_to_be_clickable(self.BUTTON_SELECT_DATE_OPENING_CALENDAR))
+            calendar_button.click()
+            # Получаем список активных дней
+            select_day_elements = self.wait.until(EC.visibility_of_all_elements_located(self.SELECT_DAY_OPENING_CALENDAR))
+            # Фильтруем только активные/валидные дни
+            valid_days = []
+            for day in select_day_elements:
+                # Проверка, что день не отключён
+                if "disabled" not in day.get_attribute("class") and day.text.strip().isdigit():
+                    valid_days.append(day)
+            random_day = random.choice(select_day_elements)
+            random_day.click()
+            time.sleep(5)
+
+            # Работа со временем
+            time_button = self.wait.until(EC.element_to_be_clickable(self.BUTTON_SELECT_TIME_OPENING_CALENDAR))
+            time_button.click()
+
+            # Слайдер часов
+            hour_slider = self.wait.until(EC.element_to_be_clickable(self.HANDLE_SLIDER_SELECT_TIME_CLOCK))
+            target_hour = random.randint(0, 23)
+            time.sleep(0.1)
+
+            # Двигаем слайдер влево или вправо
+            for _ in range(abs(target_hour - 0)):
+                ActionChains(self.driver).click_and_hold(hour_slider).move_by_offset(10, 0).release().perform()
+                time.sleep(0.2)
+
+            # Слайдер минут
+            minute_slider = self.wait.until(EC.element_to_be_clickable(self.HANDLE_SLIDER_SELECT_TIME_MINUTES))
+            target_minute = random.randint(0, 59)
+
+            for _ in range(abs(target_minute - 0)):
+                ActionChains(self.driver).click_and_hold(minute_slider).move_by_offset(7, 0).release().perform()
+                time.sleep(0.2)
+
+            # Нажимаем кнопку "Закрыть"
+            close_time_button = self.wait.until(EC.element_to_be_clickable(self.BUTTON_CLOSE_SELECT_TIME))
+            close_time_button.click()
+            time.sleep(1.5)
+
+            # Заполняем поле времени вручную (рандомно)
+            time_field = self.wait.until(EC.presence_of_element_located(self.TIME_RECORDING_FRAGMENT_VIDEO))
+            random_hour = f"{random.randint(0, 23):02d}"
+            random_minute = f"{random.randint(0, 59):02d}"
+            random_time_str = f"{random_hour}:{random_minute}"
+            time_field.clear()
+            time_field.send_keys(random_time_str)
+
+            # Заполняем поле длительности вручную (рандомно от 2 до 30 минут)
+            duration_field = self.wait.until(EC.presence_of_element_located(self.DURATION_RECORDING_FRAGMENT_VIDEO))
+            random_duration_minutes = random.randint(2, 30)
+            random_duration_str = f"{random_duration_minutes:02d}:00"
+            duration_field.clear()
+            duration_field.send_keys(random_duration_str)
+
+            # 4. Нажимаем кнопку "Загрузить"
+            upload_button = self.wait.until(EC.presence_of_element_located(self.BUTTON_UPLOAD))
+            upload_button.click()
+
+            # Ждем появления сообщения
+            message = self.wait.until(EC.presence_of_element_located(self.MESSAGE_DOWNLOAD_ARCHIVE_FRAGMENT))
+            print("Сообщение:", message.text)
+
+            # Проверяем текст сообщения и нажимаем соответствующую кнопку
+            if "Для данного интервала времени нет видеозаписей." in message.text:
+                ok_button = self.wait.until(EC.element_to_be_clickable(self.MESSAGE_NO_VIDEO_RECORDING))
+                ok_button.click()
+            else:
+
+                close_message_button = self.wait.until(EC.element_to_be_clickable(self.BUTTON_CANCEL_MESSAGE))
+                close_message_button.click()
+
+        finally:
+            self.driver.quit()
 
     # ПОЛУЧЕНИЕ СПИСКА КАМЕР. ВЫБОР ИЗ СПИСКА АКТИВНЫЕ КАМЕРЫ. РАНДОМНО НАЖАТЬ НА АКТИВНУЮ КАМЕРУ.
     allure.step("Active cameras inside list")
