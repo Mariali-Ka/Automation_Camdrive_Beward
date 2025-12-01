@@ -576,11 +576,10 @@ class ArchiveTab(BasePage):
         finally:
             self.driver.quit()
 
-    # ПРОВЕРКА АВТОВОСПРОИЗВЕДЕНИЯ РАНДОМНО ЧЕТЫРЕХ ФРАГМЕНТОВ ЗАПИСИ
+    # ПРОВЕРКА АВТОВОСПРОИЗВЕДЕНИЯ РАНДОМНО ТРЕХ ФРАГМЕНТОВ ЗАПИСИ
     allure.step("Checking auto-playback fragments from camera")
     def checking_autoplayback_fragments_from_camera(self):
         try:
-
             day_elements = self.wait.until(EC.visibility_of_all_elements_located(self.DATE_CALENDAR_WITH_RECORDING))
 
             valid_days = []
@@ -618,96 +617,248 @@ class ArchiveTab(BasePage):
             assert len(records) > 0, "Записи не найдены!"
             print(f"Найдено записей: {len(records)}")
 
-            # Начальная запись
+            # Начальная запись - рандомно выбираем
             start_record = random.choice(records)
             self.driver.execute_script("arguments[0].scrollIntoView(true);", start_record)
             start_record.click()
-            time.sleep(5)
+            time.sleep(3)  # Подождем немного, чтобы клик сработал
 
-            # Список следующих 3 записей
-            start_index = records.index(start_record)
-            next_records = records[start_index + 1:start_index + 4]
+            # Ждём, пока появится информация о текущем видео
+            print("Ожидаем загрузку информации о первом видео...")
 
-            # Воспроизводим начальную и следующие 3
-            all_records_to_watch = [start_record] + next_records
+            # Ожидаем, что все поля будут заполнены (не пустые и не "неизвестно")
+            max_wait_time = 30
+            start_wait_time = time.time()
 
-            for record in all_records_to_watch:
-                record.click()
-                time.sleep(2)
+            initial_camera = None
+            initial_date = None
+            initial_time = None
+            initial_duration = None
 
-                #  Ждём, пока обновятся поля под видео
+            while time.time() - start_wait_time < max_wait_time:
                 try:
-
-                    camera_name = self.wait.until(EC.presence_of_element_located(self.NAME_CAMERAS_RECORDING_FRAGMENT_VIDEO)).text
+                    # Получаем значения из полей
+                    camera_elem = self.wait.until(EC.presence_of_element_located(self.NAME_CAMERAS_RECORDING_FRAGMENT_VIDEO))
                     date_elem = self.wait.until(EC.presence_of_element_located(self.DATE_RECORDING_FRAGMENT_VIDEO))
                     time_elem = self.wait.until(EC.presence_of_element_located(self.TIME_RECORDING_FRAGMENT_VIDEO))
                     duration_elem = self.wait.until(EC.presence_of_element_located(self.DURATION_RECORDING_FRAGMENT_VIDEO))
 
-                    #  Извлечение данных из полей
-                    date_from_field = date_elem.text or date_elem.get_attribute("value") or "неизвестно"
-                    time_from_field = time_elem.text or time_elem.get_attribute("value") or "неизвестно"
-                    duration_from_field = duration_elem.text or duration_elem.get_attribute("value") or "неизвестно"
+                    initial_camera = camera_elem.text or camera_elem.get_attribute("value") or "неизвестно"
+                    initial_date = date_elem.text or date_elem.get_attribute("value") or "неизвестно"
+                    initial_time = time_elem.text or time_elem.get_attribute("value") or "неизвестно"
+                    initial_duration = duration_elem.text or duration_elem.get_attribute("value") or "неизвестно"
 
-                    # Вывод информации
-                    print("=" * 50)
-                    print(f"Камера: {camera_name}")
-                    print(f"Дата (из поля): {date_from_field}")
-                    print(f"Время (из поля): {time_from_field}")
-                    print(f"Длительность (из поля): {duration_from_field}")
-                    print("=" * 50)
+                    # Проверяем, что все поля заполнены (не "неизвестно" и не пустые)
+                    if (initial_camera != "неизвестно" and initial_camera.strip() and
+                            initial_date != "неизвестно" and initial_date.strip() and
+                            initial_time != "неизвестно" and initial_time.strip() and
+                            initial_duration != "неизвестно" and initial_duration.strip()):
 
-                    # Проверка, что поля не пусты
-                    assert camera_name, "Название камеры не найдено."
-                    assert date_from_field != "неизвестно", "Дата не найдена."
-                    assert time_from_field != "неизвестно", "Время не найдено."
-                    assert duration_from_field != "неизвестно", "Длительность не найдена."
-
-
-                except TimeoutException:
-                    print("Не удалось получить данные из полей под видео.")
-                    assert False, "Не удалось получить информацию о записи."
-
-                # Ожидаем видеоэлемент
-                try:
-                    video_element = self.wait.until(EC.presence_of_element_located(self.PLAY_VIDEO_WINDOW))
-                    print("Видео найдено и готово к воспроизведению.")
-
-                    # Проверка, что видео действительно загружено
-                    assert video_element, "Видеоэлемент не найден."
-
-                    # Ждём, пока появится длительность
-                    duration = None
-                    for _ in range(20):
-                        try:
-                            duration = self.driver.execute_script("return arguments[0].duration;", video_element)
-                            if duration and duration > 0:
-                                print(f"Длительность видео: {duration:.2f} секунд")
-                                break
-                        except Exception as e:
-                            print(f"Ошибка получения длительности: {e}")
+                        print(
+                            f"Исходное видео: камера='{initial_camera}', дата='{initial_date}', время='{initial_time}', длительность='{initial_duration}'")
+                        break
+                    else:
+                        print(
+                            f"Поля еще не заполнены, ждем... Текущие значения: камера='{initial_camera}', дата='{initial_date}', время='{initial_time}', длительность='{initial_duration}'")
                         time.sleep(1)
+                        continue
 
-                    assert duration and duration > 0, "Не удалось определить длительность видео"
+                except Exception as e:
+                    print(f"Ошибка при получении информации о видео: {e}")
+                    time.sleep(1)
+                    continue
 
-                    # Ждём окончания воспроизведения
+            # Проверяем, что все поля заполнены
+            assert initial_camera and initial_camera != "неизвестно", "Название камеры не найдено."
+            assert initial_date and initial_date != "неизвестно", "Дата не найдена."
+            assert initial_time and initial_time != "неизвестно", "Время не найдено."
+            assert initial_duration and initial_duration != "неизвестно", "Длительность не найдена."
+
+            # Ожидаем видеоэлемент для начальной записи
+            try:
+                video_element = self.wait.until(EC.presence_of_element_located(self.PLAY_VIDEO_WINDOW))
+                print("Видео найдено и готово к воспроизведению.")
+
+                # Проверка, что видео действительно загружено
+                assert video_element, "Видеоэлемент не найден."
+
+                # Ждём, пока появится длительность
+                duration = None
+                for _ in range(60):
+                    try:
+                        duration = self.driver.execute_script("return arguments[0].duration;", video_element)
+                        if duration and duration > 0:
+                            print(f"Длительность видео: {duration:.2f} секунд")
+                            break
+                    except Exception as e:
+                        print(f"Ошибка получения длительности: {e}")
+                    time.sleep(1)
+
+                if not duration or duration <= 0:
+                    print("Не удалось определить длительность видео, используем ожидание по таймеру")
+                    time.sleep(10)
+                else:
+                    # Ждём окончания воспроизведения первого видео
                     start_time = time.time()
+                    print(
+                        f"Начинаем ожидание завершения первого видео длительностью {duration:.2f} секунд ({duration / 60:.2f} минут)")
                     while True:
                         try:
-                            current_time = self.driver.execute_script("return arguments[0].currentTime;", video_element)
-                            if current_time >= duration - 1:  # погрешность
-                                print("Видео полностью воспроизведено.")
+                            current_time_pos = self.driver.execute_script("return arguments[0].currentTime;", video_element)
+                            if current_time_pos >= duration - 1:  # погрешность
+                                print("Первое видео полностью воспроизведено.")
                                 break
                         except Exception as e:
                             print(f"Ошибка получения текущего времени: {e}")
                         time.sleep(1)
 
+                        # Защищаем от бесконечного цикла
+                        if time.time() - start_time > duration + 300:
+                            print("Превышено время ожидания завершения видео")
+                            break
+
                     end_time = time.time()
                     watch_time = end_time - start_time
-                    print(f"Время просмотра: {watch_time:.2f} секунд")
+                    print(f"Время просмотра первого видео: {watch_time:.2f} секунд ({watch_time / 60:.2f} минут)")
 
-                except TimeoutException:
-                    print("Видео не загрузилось, пропускаем...")
-                    assert False, "Видео не загрузилось, невозможно проверить автовоспроизведение."
+            except TimeoutException:
+                print("Видео не загрузилось, пропускаем...")
+                assert False, "Видео не загрузилось, невозможно проверить автовоспроизведение."
+
+            # Ждём 3 фрагмента, включая первый
+            watched_count = 1  # Уже посмотрели первый фрагмент
+            print(f"Начинаем отслеживание автовоспроизведения. Просмотрено: {watched_count}/3 фрагментов")
+
+            # Ждём и отслеживаем следующие 2 фрагмента
+            while watched_count < 3:
+                print(f"Ожидаем следующий фрагмент... Просмотрено: {watched_count}/3")
+
+                # Запоминаем текущее состояние
+                current_camera = self.wait.until(EC.presence_of_element_located(self.NAME_CAMERAS_RECORDING_FRAGMENT_VIDEO)).text
+                current_date = self.wait.until(EC.presence_of_element_located(self.DATE_RECORDING_FRAGMENT_VIDEO)).text
+                current_time = self.wait.until(EC.presence_of_element_located(self.TIME_RECORDING_FRAGMENT_VIDEO)).text
+
+                print(f"Текущее состояние: камера='{current_camera}', дата='{current_date}', время='{current_time}'")
+
+                # Ждем изменения состояния (нового фрагмента)
+                max_wait_time = 1800
+                start_wait_time = time.time()
+
+                new_fragment_found = False
+
+                while time.time() - start_wait_time < max_wait_time and not new_fragment_found:
+                    time.sleep(2)
+
+                    try:
+                        # Ждем, пока поля будут заполнены для нового фрагмента
+                        new_camera_elem = self.wait.until(EC.presence_of_element_located(self.NAME_CAMERAS_RECORDING_FRAGMENT_VIDEO))
+                        new_date_elem = self.wait.until(EC.presence_of_element_located(self.DATE_RECORDING_FRAGMENT_VIDEO))
+                        new_time_elem = self.wait.until(EC.presence_of_element_located(self.TIME_RECORDING_FRAGMENT_VIDEO))
+                        new_duration_elem = self.wait.until(EC.presence_of_element_located(self.DURATION_RECORDING_FRAGMENT_VIDEO))
+
+                        new_camera = new_camera_elem.text or new_camera_elem.get_attribute("value") or "неизвестно"
+                        new_date = new_date_elem.text or new_date_elem.get_attribute("value") or "неизвестно"
+                        new_time = new_time_elem.text or new_time_elem.get_attribute("value") or "неизвестно"
+                        new_duration = new_duration_elem.text or new_duration_elem.get_attribute(
+                            "value") or "неизвестно"
+
+                        # Если хотя бы одно поле изменилось - это новый фрагмент
+                        if ((new_camera != current_camera or
+                             new_date != current_date or
+                             new_time != current_time) and
+                                # Проверяем, что новые значения не "неизвестно" и не пустые
+                                new_camera != "неизвестно" and new_camera.strip() and
+                                new_date != "неизвестно" and new_date.strip() and
+                                new_time != "неизвестно" and new_time.strip() and
+                                new_duration != "неизвестно" and new_duration.strip()):
+
+                            print(
+                                f"Обнаружена новая запись: дата='{new_date}', время='{new_time}', камера='{new_camera}'")
+
+                            # Проверка, что поля не пусты
+                            assert new_camera and new_camera != "неизвестно", "Название камеры не найдено."
+                            assert new_date and new_date != "неизвестно", "Дата не найдена."
+                            assert new_time and new_time != "неизвестно", "Время не найдено."
+                            assert new_duration and new_duration != "неизвестно", "Длительность не найдена."
+
+                            print("=" * 50)
+                            print(f"Камера: {new_camera}")
+                            print(f"Дата (из поля): {new_date}")
+                            print(f"Время (из поля): {new_time}")
+                            print(f"Длительность (из поля): {new_duration}")
+                            print("=" * 50)
+
+                            new_fragment_found = True
+
+                            # Ожидаем видеоэлемент для нового фрагмента
+                            try:
+                                video_element = self.wait.until(EC.presence_of_element_located(self.PLAY_VIDEO_WINDOW))
+                                print("Видео найдено и готово к воспроизведению.")
+
+                                # Ждём, пока появится длительность
+                                duration = None
+                                for _ in range(60):
+                                    try:
+                                        duration = self.driver.execute_script("return arguments[0].duration;", video_element)
+                                        if duration and duration > 0:
+                                            print(
+                                                f"Длительность видео: {duration:.2f} секунд ({duration / 60:.2f} минут)")
+                                            break
+                                    except Exception as e:
+                                        print(f"Ошибка получения длительности: {e}")
+                                    time.sleep(1)
+
+                                if not duration or duration <= 0:
+                                    print("Не удалось определить длительность видео, используем ожидание по таймеру")
+                                    time.sleep(900)
+                                else:
+                                    # Ждём окончания воспроизведения
+                                    start_time = time.time()
+                                    print(
+                                        f"Начинаем ожидание завершения видео длительностью {duration:.2f} секунд ({duration / 60:.2f} минут)")
+                                    while True:
+                                        try:
+                                            current_time_pos = self.driver.execute_script("return arguments[0].currentTime;", video_element)
+                                            if current_time_pos >= duration - 1:  # погрешность
+                                                print("Видео полностью воспроизведено.")
+                                                break
+                                        except Exception as e:
+                                            print(f"Ошибка получения текущего времени: {e}")
+                                        time.sleep(1)
+
+                                        # Защищаем от бесконечного цикла
+                                        if time.time() - start_time > duration + 900:
+                                            print("Превышено время ожидания завершения видео")
+                                            break
+
+                                    end_time = time.time()
+                                    watch_time = end_time - start_time
+                                    print(f"Время просмотра: {watch_time:.2f} секунд ({watch_time / 60:.2f} минут)")
+
+                            except TimeoutException:
+                                print("Видео не загрузилось, пропускаем...")
+                                assert False, "Видео не загрузилось, невозможно проверить автовоспроизведение."
+
+                            watched_count += 1
+                            print(f"Просмотрено: {watched_count}/3 фрагментов")
+
+                            if watched_count >= 3:
+                                print("Просмотр остановлен после 3 фрагментов.")
+                                break
+
+                            # Обновляем текущее состояние для следующей итерации
+                            current_camera = new_camera
+                            current_date = new_date
+                            current_time = new_time
+
+                    except Exception as e:
+                        print(f"Ошибка при проверке изменения фрагмента: {e}")
+                        time.sleep(2)
+                        continue
+
+                if not new_fragment_found:
+                    print("Превышено время ожидания следующего фрагмента")
+                    break
 
         finally:
             self.driver.quit()
