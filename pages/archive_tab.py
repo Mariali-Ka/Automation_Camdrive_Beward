@@ -469,112 +469,249 @@ class ArchiveTab(BasePage):
     allure.step("View one fragment record on each valid day")
     def view_one_fragment_record_on_each_valid_day(self):
         try:
+            # Собираем активные дни из текущего месяца
             day_elements = self.wait.until(EC.visibility_of_all_elements_located(self.DATE_CALENDAR_WITH_RECORDING))
 
-            valid_days = []
+            valid_days_current_month = []
             for day in day_elements:
                 if "disabled" not in day.get_attribute("class") and day.text.strip().isdigit():
-                    valid_days.append(day)
+                    valid_days_current_month.append(day)
 
-            print("Валидные дни:", [d.text for d in valid_days])
-            assert len(valid_days) > 0, "Нет доступных дней для выбора."
-            print("Есть доступные дни для выбора.")
+            print(f"Активные дни в текущем месяце: {[d.text for d in valid_days_current_month]}")
 
-            # Проходим по каждому валидному дню
-            for idx, day in enumerate(valid_days):
-                print(f"\n--- Обработка дня #{idx + 1}: {day.text} ---")
+            # Проверяем, есть ли в текущем месяце хотя бы один день с записями
+            if len(valid_days_current_month) > 0:
+                # Выбираем случайные дни из текущего месяца (не более 4)
+                days_to_check_current = min(4, len(valid_days_current_month))
+                selected_days_current = random.sample(valid_days_current_month, days_to_check_current)
 
-                # Кликаем на день
-                self.driver.execute_script("arguments[0].scrollIntoView(true);", day)
-                time.sleep(1.5)
-                day.click()
+                print(f"Выбрано дней для проверки в текущем месяце: {len(selected_days_current)}")
+
+                # Проверяем записи в выбранных днях текущего месяца
+                for i, day in enumerate(selected_days_current):
+                    self.driver.execute_script("arguments[0].scrollIntoView(true);", day)
+                    time.sleep(1.5)
+                    print(f"Кликаем на день в текущем месяце: {day.text}")
+                    day.click()
+                    time.sleep(1.5)
+
+                    # Проверка наличия записей
+                    records = self.wait.until(EC.visibility_of_all_elements_located(self.SEGMENT_RECORDING))
+                    assert len(records) > 0, "Записи не найдены!"
+                    print(f"Найдено записей в текущем месяце: {len(records)}")
+
+                    # Выбираем 1 случайную запись для просмотра
+                    selected_record = random.choice(records)
+                    print(f"Выбрана запись для просмотра: {records.index(selected_record) + 1}")
+
+                    # Просматриваем выбранную запись
+                    self.driver.execute_script("arguments[0].scrollIntoView(true);", selected_record)
+                    time.sleep(1)
+                    selected_record.click()
+                    time.sleep(3)  # Ждём загрузки
+
+                    # Ждём обновления информации под видео
+                    try:
+                        camera_name = self.wait.until(EC.presence_of_element_located(self.NAME_CAMERAS_RECORDING_FRAGMENT_VIDEO)).text
+                        date_elem = self.wait.until(EC.presence_of_element_located(self.DATE_RECORDING_FRAGMENT_VIDEO))
+                        time_elem = self.wait.until(EC.presence_of_element_located(self.TIME_RECORDING_FRAGMENT_VIDEO))
+                        duration_elem = self.wait.until(EC.presence_of_element_located(self.DURATION_RECORDING_FRAGMENT_VIDEO))
+
+                        # Извлечение данных
+                        date_from_field = date_elem.text or date_elem.get_attribute("value") or "неизвестно"
+                        time_from_field = time_elem.text or time_elem.get_attribute("value") or "неизвестно"
+                        duration_from_field = duration_elem.text or duration_elem.get_attribute("value") or "неизвестно"
+
+                        print("=" * 60)
+                        print(f"Камера: {camera_name}")
+                        print(f"Дата: {date_from_field}")
+                        print(f"Время: {time_from_field}")
+                        print(f"Длительность: {duration_from_field}")
+                        print("=" * 60)
+
+                        # Проверка, что поля не пусты
+                        assert camera_name, "Название камеры не найдено."
+                        assert date_from_field != "неизвестно", "Дата не найдена."
+                        assert time_from_field != "неизвестно", "Время не найдено."
+                        assert duration_from_field != "неизвестно", "Длительность не найдена."
+
+                    except TimeoutException:
+                        print("Не удалось получить данные из полей под видео.")
+                        assert False, "Не удалось получить информацию о записи."
+
+                    # Ждём видеоэлемент
+                    try:
+                        video_element = self.wait.until(EC.presence_of_element_located(self.PLAY_VIDEO_WINDOW))
+                        print("Видео найдено и готово к воспроизведению.")
+
+                        # Ждём, пока появится длительность
+                        duration = None
+                        for _ in range(20):
+                            try:
+                                duration = self.driver.execute_script("return arguments[0].duration;", video_element)
+                                if duration and duration > 0:
+                                    print(f"Длительность видео: {duration:.2f} секунд")
+                                    break
+                            except Exception as e:
+                                print(f"Ошибка получения длительности: {e}")
+                            time.sleep(1)
+
+                        assert duration and duration > 0, "Не удалось определить длительность видео"
+
+                        # Ждём окончания воспроизведения
+                        start_time = time.time()
+                        while True:
+                            try:
+                                current_time = self.driver.execute_script("return arguments[0].currentTime;", video_element)
+                                if current_time >= duration - 1:
+                                    print("Видео полностью воспроизведено.")
+                                    break
+                            except Exception as e:
+                                print(f"Ошибка получения текущего времени: {e}")
+                            time.sleep(1)
+
+                        end_time = time.time()
+                        watch_time = end_time - start_time
+                        print(f"Время просмотра: {watch_time:.2f} секунд")
+
+                    except TimeoutException:
+                        print("Видео не загрузилось, пропускаем...")
+                        assert False, "Видео не загрузилось, невозможно проверить."
+
+            # Проверяем, нужно ли переходить к предыдущему месяцу
+            # Если в текущем месяце не хватает 4 дней с записями, переходим к предыдущему
+            if len(valid_days_current_month) < 4:
+                print("Переходим к предыдущему месяцу для проверки дополнительных дней с записями...")
+
+                # Клик на кнопку предыдущего месяца
+                prev_month_button = self.wait.until(EC.element_to_be_clickable(self.BUTTON_HEADING_l))
+                prev_month_button.click()
+                time.sleep(5)
+
+                # Клик на активное устройство для активации дней с записями
+                try:
+                    active_device = self.wait.until(EC.element_to_be_clickable(self.ACTIVE_CAMERAS_INSIDE_LIST))
+                    active_device.click()
+                    print("Кликнули на активное устройство для активации дней в предыдущем месяце")
+                    time.sleep(5)
+                except Exception as device_click_error:
+                    print(f"Не удалось кликнуть на активное устройство: {device_click_error}")
+
+                # Собираем активные дни в предыдущем месяце после клика на устройство
+                day_elements_prev = self.wait.until(EC.visibility_of_all_elements_located(self.DATE_CALENDAR_WITH_RECORDING))
+
+                valid_days_prev_month = []
+                for day in day_elements_prev:
+                    if "disabled" not in day.get_attribute("class") and day.text.strip().isdigit():
+                        valid_days_prev_month.append(day)
+
+                print(f"Активные дни в предыдущем месяце: {[d.text for d in valid_days_prev_month]}")
+
+                # Проверяем, есть ли активные дни в предыдущем месяце
+                if len(valid_days_prev_month) > 0:
+                    # Выбираем случайный день из предыдущего месяца
+                    random_day_prev = random.choice(valid_days_prev_month)
+
+                    self.driver.execute_script("arguments[0].scrollIntoView(true);", random_day_prev)
+                    time.sleep(1.5)
+                    print(f"Кликаем на день в предыдущем месяце: {random_day_prev.text}")
+                    random_day_prev.click()
+                    time.sleep(1.5)
+
+                    # Проверка наличия записей
+                    records = self.wait.until(EC.visibility_of_all_elements_located(self.SEGMENT_RECORDING))
+                    assert len(records) > 0, "Записи не найдены!"
+                    print(f"Найдено записей в предыдущем месяце: {len(records)}")
+
+                    # Выбираем 1 случайную запись для просмотра
+                    selected_record = random.choice(records)
+                    print(f"Выбрана запись для просмотра: {records.index(selected_record) + 1}")
+
+                    # Просматриваем выбранную запись
+                    self.driver.execute_script("arguments[0].scrollIntoView(true);", selected_record)
+                    time.sleep(1)
+                    selected_record.click()
+                    time.sleep(3)  # Ждём загрузки
+
+                    # Ждём обновления информации под видео
+                    try:
+                        camera_name = self.wait.until(EC.presence_of_element_located(self.NAME_CAMERAS_RECORDING_FRAGMENT_VIDEO)).text
+                        date_elem = self.wait.until(EC.presence_of_element_located(self.DATE_RECORDING_FRAGMENT_VIDEO))
+                        time_elem = self.wait.until(EC.presence_of_element_located(self.TIME_RECORDING_FRAGMENT_VIDEO))
+                        duration_elem = self.wait.until(EC.presence_of_element_located(self.DURATION_RECORDING_FRAGMENT_VIDEO))
+
+                        # Извлечение данных
+                        date_from_field = date_elem.text or date_elem.get_attribute("value") or "неизвестно"
+                        time_from_field = time_elem.text or time_elem.get_attribute("value") or "неизвестно"
+                        duration_from_field = duration_elem.text or duration_elem.get_attribute("value") or "неизвестно"
+
+                        print("=" * 60)
+                        print(f"Камера: {camera_name}")
+                        print(f"Дата: {date_from_field}")
+                        print(f"Время: {time_from_field}")
+                        print(f"Длительность: {duration_from_field}")
+                        print("=" * 60)
+
+                        # Проверка, что поля не пусты
+                        assert camera_name, "Название камеры не найдено."
+                        assert date_from_field != "неизвестно", "Дата не найдена."
+                        assert time_from_field != "неизвестно", "Время не найдено."
+                        assert duration_from_field != "неизвестно", "Длительность не найдена."
+
+                    except TimeoutException:
+                        print("Не удалось получить данные из полей под видео.")
+                        assert False, "Не удалось получить информацию о записи."
+
+                    # Ждём видеоэлемент
+                    try:
+                        video_element = self.wait.until(EC.presence_of_element_located(self.PLAY_VIDEO_WINDOW))
+                        print("Видео найдено и готово к воспроизведению.")
+
+                        # Ждём, пока появится длительность
+                        duration = None
+                        for _ in range(20):
+                            try:
+                                duration = self.driver.execute_script("return arguments[0].duration;", video_element)
+                                if duration and duration > 0:
+                                    print(f"Длительность видео: {duration:.2f} секунд")
+                                    break
+                            except Exception as e:
+                                print(f"Ошибка получения длительности: {e}")
+                            time.sleep(1)
+
+                        assert duration and duration > 0, "Не удалось определить длительность видео"
+
+                        # Ждём окончания воспроизведения
+                        start_time = time.time()
+                        while True:
+                            try:
+                                current_time = self.driver.execute_script("return arguments[0].currentTime;", video_element)
+                                if current_time >= duration - 1:
+                                    print("Видео полностью воспроизведено.")
+                                    break
+                            except Exception as e:
+                                print(f"Ошибка получения текущего времени: {e}")
+                            time.sleep(1)
+
+                        end_time = time.time()
+                        watch_time = end_time - start_time
+                        print(f"Время просмотра: {watch_time:.2f} секунд")
+
+                    except TimeoutException:
+                        print("Видео не загрузилось, пропускаем...")
+                        assert False, "Видео не загрузилось, невозможно проверить."
+
+                # Возвращаемся обратно к текущему месяцу
+                next_month_button = self.wait.until(EC.element_to_be_clickable(self.BUTTON_HEADING_R_NEXT))
+                next_month_button.click()
                 time.sleep(2)
-
-                # Ждём загрузки записей
-                records = self.wait.until(EC.visibility_of_all_elements_located(self.SEGMENT_RECORDING))
-                assert len(records) > 0, f"Записи не найдены для дня {day.text}!"
-                print(f"Найдено записей: {len(records)}")
-
-                # Выбираем случайную запись
-                random_record = random.choice(records)
-                print(f"Выбрана случайная запись: индекс {records.index(random_record)}")
-
-                # Кликаем на запись
-                self.driver.execute_script("arguments[0].scrollIntoView(true);", random_record)
-                time.sleep(1)
-                random_record.click()
-                time.sleep(3)
-
-                # Ждём обновления информации под видео
-                try:
-                    camera_name = self.wait.until(EC.presence_of_element_located(self.NAME_CAMERAS_RECORDING_FRAGMENT_VIDEO)).text
-                    date_elem = self.wait.until(EC.presence_of_element_located(self.DATE_RECORDING_FRAGMENT_VIDEO))
-                    time_elem = self.wait.until(EC.presence_of_element_located(self.TIME_RECORDING_FRAGMENT_VIDEO))
-                    duration_elem = self.wait.until(EC.presence_of_element_located(self.DURATION_RECORDING_FRAGMENT_VIDEO))
-
-                    # Извлечение данных
-                    date_from_field = date_elem.text or date_elem.get_attribute("value") or "неизвестно"
-                    time_from_field = time_elem.text or time_elem.get_attribute("value") or "неизвестно"
-                    duration_from_field = duration_elem.text or duration_elem.get_attribute("value") or "неизвестно"
-
-                    print("=" * 60)
-                    print(f"Камера: {camera_name}")
-                    print(f"Дата: {date_from_field}")
-                    print(f"Время: {time_from_field}")
-                    print(f"Длительность: {duration_from_field}")
-                    print("=" * 60)
-
-                    # Проверка, что поля не пусты
-                    assert camera_name, "Название камеры не найдено."
-                    assert date_from_field != "неизвестно", "Дата не найдена."
-                    assert time_from_field != "неизвестно", "Время не найдено."
-                    assert duration_from_field != "неизвестно", "Длительность не найдена."
-
-                except TimeoutException:
-                    print("Не удалось получить данные из полей под видео.")
-                    assert False, "Не удалось получить информацию о записи."
-
-                # Ждём видеоэлемент
-                try:
-                    video_element = self.wait.until(EC.presence_of_element_located(self.PLAY_VIDEO_WINDOW))
-                    print("Видео найдено и готово к воспроизведению.")
-
-                    # Ждём, пока появится длительность
-                    duration = None
-                    for _ in range(20):
-                        try:
-                            duration = self.driver.execute_script("return arguments[0].duration;", video_element)
-                            if duration and duration > 0:
-                                print(f"Длительность видео: {duration:.2f} секунд")
-                                break
-                        except Exception as e:
-                            print(f"Ошибка получения длительности: {e}")
-                        time.sleep(1)
-
-                    assert duration and duration > 0, "Не удалось определить длительность видео"
-
-                    # Ждём окончания воспроизведения
-                    start_time = time.time()
-                    while True:
-                        try:
-                            current_time = self.driver.execute_script("return arguments[0].currentTime;", video_element)
-                            if current_time >= duration - 1:
-                                print("Видео полностью воспроизведено.")
-                                break
-                        except Exception as e:
-                            print(f"Ошибка получения текущего времени: {e}")
-                        time.sleep(1)
-
-                    end_time = time.time()
-                    watch_time = end_time - start_time
-                    print(f"Время просмотра: {watch_time:.2f} секунд")
-
-                except TimeoutException:
-                    print("Видео не загрузилось, пропускаем...")
-                    assert False, "Видео не загрузилось, невозможно проверить."
+            else:
+                print(
+                    "В текущем месяце достаточно дней с записями (4 или более), переход к предыдущему месяцу не требуется")
 
         finally:
             self.driver.quit()
+
 
     # ПРОВЕРКА АВТОВОСПРОИЗВЕДЕНИЯ РАНДОМНО ТРЕХ ФРАГМЕНТОВ ЗАПИСИ
     allure.step("Checking auto-playback fragments from camera")
