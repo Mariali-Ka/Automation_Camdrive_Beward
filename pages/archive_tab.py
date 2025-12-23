@@ -56,6 +56,9 @@ class ArchiveTab(BasePage):
     DATE_RECORDING_FRAGMENT_VIDEO = ("xpath", "//input[@id='download-date']")  # дата записи фрагмента
     TIME_RECORDING_FRAGMENT_VIDEO = ("xpath", "//input[@id='download-time']")  # время записи фрагмента
     DURATION_RECORDING_FRAGMENT_VIDEO = ("xpath", "//input[@id='download-duration']")  # время записи фрагмента
+    TIMELINE_CONTROLBAR = ("xpath", "//div[contains(@class, 'player-main-controlbar-seek-progress-left')][contains(@style, 'width')]")  # таймлайн плейера
+    BUTTON_PAUSE_CONTROLBAR = ("xpath", "//div[@class='player-main-controlbar-play player-main-controlbar-pause']")  # кнопка pause в плеере
+    BUTTON_PLAY_CONTROLBAR = ("xpath", "//div[@class='player-main-controlbar-play']")  # кнопка play в плеере
 
     # ОТКРЫВАЕМ ВКЛАДКУ АРХИВ
     @allure.step("Go to archive tab")
@@ -337,9 +340,8 @@ class ArchiveTab(BasePage):
             start_time = time.time()
             while True:
                 try:
-                    current_time = self.driver.execute_script("return document.getElementsByTagName('video')[0].currentTime",
-                                                         video_element)
-                    if current_time >= duration - 1:  # -1 секунда — погрешность
+                    current_time = self.driver.execute_script("return document.getElementsByTagName('video')[0].currentTime", video_element)
+                    if current_time >= duration - 1:
                         print("Видео полностью воспроизведено.")
                         break
                 except Exception as e:
@@ -508,11 +510,12 @@ class ArchiveTab(BasePage):
                     self.driver.execute_script("arguments[0].scrollIntoView(true);", selected_record)
                     time.sleep(1)
                     selected_record.click()
-                    time.sleep(3)  # Ждём загрузки
+                    time.sleep(8)  # Увеличенное ожидание для загрузки видео
 
                     # Ждём обновления информации под видео
                     try:
-                        camera_name = self.wait.until(EC.presence_of_element_located(self.NAME_CAMERAS_RECORDING_FRAGMENT_VIDEO)).text
+                        camera_name = self.wait.until(
+                            EC.presence_of_element_located(self.NAME_CAMERAS_RECORDING_FRAGMENT_VIDEO)).text
                         date_elem = self.wait.until(EC.presence_of_element_located(self.DATE_RECORDING_FRAGMENT_VIDEO))
                         time_elem = self.wait.until(EC.presence_of_element_located(self.TIME_RECORDING_FRAGMENT_VIDEO))
                         duration_elem = self.wait.until(EC.presence_of_element_located(self.DURATION_RECORDING_FRAGMENT_VIDEO))
@@ -544,6 +547,11 @@ class ArchiveTab(BasePage):
                         video_element = self.wait.until(EC.presence_of_element_located(self.PLAY_VIDEO_WINDOW))
                         print("Видео найдено и готово к воспроизведению.")
 
+                        # Перемещаем мышь к области видео, чтобы активировать элементы управления
+                        actions = ActionChains(self.driver)
+                        actions.move_to_element(video_element).perform()
+                        time.sleep(2)  # Даем время для появления элементов управления
+
                         # Ждём, пока появится длительность
                         duration = None
                         for _ in range(20):
@@ -558,17 +566,111 @@ class ArchiveTab(BasePage):
 
                         assert duration and duration > 0, "Не удалось определить длительность видео"
 
-                        # Ждём окончания воспроизведения
+                        # Начинаем воспроизведение и проверяем таймлайн
                         start_time = time.time()
+
+                        # Получаем начальное значение таймлайна
+                        timeline_element = self.wait.until(EC.presence_of_element_located(self.TIMELINE_CONTROLBAR))
+                        initial_style = timeline_element.get_attribute("style")
+                        print(f"Начальное значение таймлайна: {initial_style}")
+
+                        # Получаем начальное время воспроизведения
+                        last_known_time = self.driver.execute_script("return arguments[0].currentTime;", video_element)
+                        print(f"Начальное время воспроизведения: {last_known_time}")
+
+                        # Ждём окончания воспроизведения с проверкой остановки
+                        no_change_count = 0
+                        max_no_change_count = 5  # Максимальное количество проверок без изменений
+
                         while True:
                             try:
                                 current_time = self.driver.execute_script("return arguments[0].currentTime;", video_element)
+
+                                # Проверяем, изменилось ли значение таймлайна
+                                current_timeline_style = timeline_element.get_attribute("style")
+
+                                # Проверяем, изменилось ли текущее время воспроизведения
+                                time_changed = abs(current_time - last_known_time) > 0.1
+                                timeline_changed = current_timeline_style != initial_style
+
+                                if time_changed or timeline_changed:
+                                    # Воспроизведение идёт - обновляем оба значения
+                                    if time_changed:
+                                        last_known_time = current_time
+                                    if timeline_changed:
+                                        initial_style = current_timeline_style
+                                    no_change_count = 0  # Сбрасываем счетчик
+
+                                else:
+                                    # Ни время, ни таймлайн не изменились - возможно воспроизведение остановилось
+                                    no_change_count += 1
+
+                                    if no_change_count >= max_no_change_count:
+                                        print("Воспроизведение остановилось, перезапускаем плеер...")
+
+                                        # Перемещаем мышь к области видео перед взаимодействием с кнопками
+                                        actions.move_to_element(video_element).perform()
+                                        time.sleep(2)
+
+                                        # Кликаем на кнопку паузы
+                                        try:
+                                            pause_button = self.wait.until(
+                                                EC.element_to_be_clickable(self.BUTTON_PAUSE_CONTROLBAR))
+                                            pause_button.click()
+                                            print("Кликнули на кнопку Pause")
+                                            time.sleep(2)
+                                        except:
+                                            print("Не удалось найти кнопку Pause")
+
+                                        # Затем кликаем на кнопку плей
+                                        try:
+                                            play_button = self.wait.until(EC.element_to_be_clickable(self.BUTTON_PLAY_CONTROLBAR))
+                                            play_button.click()
+                                            print("Кликнули на кнопку Play")
+                                            time.sleep(5)  # Небольшое ожидание после нажатия плей
+
+                                            # После нажатия плей, ждём, пока видео начнёт воспроизводиться
+                                            restart_start_time = time.time()
+                                            restart_timeout = 15  # Увеличенный таймаут до 15 секунд
+
+                                            # Ждём, пока видео действительно начнёт воспроизводиться
+                                            while time.time() - restart_start_time < restart_timeout:
+                                                new_current_time = self.driver.execute_script(
+                                                    "return arguments[0].currentTime;",
+                                                    video_element)
+                                                new_timeline_style = timeline_element.get_attribute("style")
+
+                                                # Проверяем, изменилось ли что-то после перезапуска
+                                                time_started = abs(new_current_time - last_known_time) > 0.1
+                                                timeline_started = new_timeline_style != initial_style
+
+                                                if time_started or timeline_started:
+                                                    print(f"Плеер перезапущен. Время: {new_current_time:.2f}")
+                                                    last_known_time = new_current_time
+                                                    initial_style = new_timeline_style
+                                                    no_change_count = 0  # Сбрасываем счетчик
+                                                    break
+                                                time.sleep(1)
+                                            else:
+                                                # Если видео не начало воспроизводиться в течение 15 секунд - переходим к следующему дню
+                                                print(
+                                                    "Видео не начало воспроизводиться после 15 секунд ожидания, переходим к следующему дню")
+                                                break  # Выходим из цикла воспроизведения, чтобы перейти к следующему дню
+
+                                        except:
+                                            print("Не удалось найти кнопку Play")
+                                            break
+
+                                # Проверяем, достигли ли конца видео
                                 if current_time >= duration - 1:
                                     print("Видео полностью воспроизведено.")
                                     break
+
+                                time.sleep(1)
+
                             except Exception as e:
                                 print(f"Ошибка получения текущего времени: {e}")
-                            time.sleep(1)
+                                break
 
                         end_time = time.time()
                         watch_time = end_time - start_time
@@ -631,11 +733,12 @@ class ArchiveTab(BasePage):
                     self.driver.execute_script("arguments[0].scrollIntoView(true);", selected_record)
                     time.sleep(1)
                     selected_record.click()
-                    time.sleep(3)  # Ждём загрузки
+                    time.sleep(8)  # Увеличенное ожидание для загрузки видео
 
                     # Ждём обновления информации под видео
                     try:
-                        camera_name = self.wait.until(EC.presence_of_element_located(self.NAME_CAMERAS_RECORDING_FRAGMENT_VIDEO)).text
+                        camera_name = self.wait.until(
+                            EC.presence_of_element_located(self.NAME_CAMERAS_RECORDING_FRAGMENT_VIDEO)).text
                         date_elem = self.wait.until(EC.presence_of_element_located(self.DATE_RECORDING_FRAGMENT_VIDEO))
                         time_elem = self.wait.until(EC.presence_of_element_located(self.TIME_RECORDING_FRAGMENT_VIDEO))
                         duration_elem = self.wait.until(EC.presence_of_element_located(self.DURATION_RECORDING_FRAGMENT_VIDEO))
@@ -667,6 +770,11 @@ class ArchiveTab(BasePage):
                         video_element = self.wait.until(EC.presence_of_element_located(self.PLAY_VIDEO_WINDOW))
                         print("Видео найдено и готово к воспроизведению.")
 
+                        # Перемещаем мышь к области видео, чтобы активировать элементы управления
+                        actions = ActionChains(self.driver)
+                        actions.move_to_element(video_element).perform()
+                        time.sleep(2)  # Даем время для появления элементов управления
+
                         # Ждём, пока появится длительность
                         duration = None
                         for _ in range(20):
@@ -681,17 +789,111 @@ class ArchiveTab(BasePage):
 
                         assert duration and duration > 0, "Не удалось определить длительность видео"
 
-                        # Ждём окончания воспроизведения
+                        # Начинаем воспроизведение и проверяем таймлайн
                         start_time = time.time()
+
+                        # Получаем начальное значение таймлайна
+                        timeline_element = self.wait.until(EC.presence_of_element_located(self.TIMELINE_CONTROLBAR))
+                        initial_style = timeline_element.get_attribute("style")
+                        print(f"Начальное значение таймлайна: {initial_style}")
+
+                        # Получаем начальное время воспроизведения
+                        last_known_time = self.driver.execute_script("return arguments[0].currentTime;", video_element)
+                        print(f"Начальное время воспроизведения: {last_known_time}")
+
+                        # Ждём окончания воспроизведения с проверкой остановки
+                        no_change_count = 0
+                        max_no_change_count = 5  # Максимальное количество проверок без изменений
+
                         while True:
                             try:
                                 current_time = self.driver.execute_script("return arguments[0].currentTime;", video_element)
+
+                                # Проверяем, изменилось ли значение таймлайна
+                                current_timeline_style = timeline_element.get_attribute("style")
+
+                                # Проверяем, изменилось ли текущее время воспроизведения
+                                time_changed = abs(current_time - last_known_time) > 0.1
+                                timeline_changed = current_timeline_style != initial_style
+
+                                if time_changed or timeline_changed:
+                                    # Воспроизведение идёт - обновляем оба значения
+                                    if time_changed:
+                                        last_known_time = current_time
+                                    if timeline_changed:
+                                        initial_style = current_timeline_style
+                                    no_change_count = 0  # Сбрасываем счетчик
+
+                                else:
+                                    # Ни время, ни таймлайн не изменились - возможно воспроизведение остановилось
+                                    no_change_count += 1
+
+                                    if no_change_count >= max_no_change_count:
+                                        print("Воспроизведение остановилось, перезапускаем плеер...")
+
+                                        # Перемещаем мышь к области видео перед взаимодействием с кнопками
+                                        actions.move_to_element(video_element).perform()
+                                        time.sleep(2)
+
+                                        # Кликаем на кнопку паузы
+                                        try:
+                                            pause_button = self.wait.until(
+                                                EC.element_to_be_clickable(self.BUTTON_PAUSE_CONTROLBAR))
+                                            pause_button.click()
+                                            print("Кликнули на кнопку Pause")
+                                            time.sleep(2)
+                                        except:
+                                            print("Не удалось найти кнопку Pause")
+
+                                        # Затем кликаем на кнопку плей
+                                        try:
+                                            play_button = self.wait.until(EC.element_to_be_clickable(self.BUTTON_PLAY_CONTROLBAR))
+                                            play_button.click()
+                                            print("Кликнули на кнопку Play")
+                                            time.sleep(5)  # Небольшое ожидание после нажатия плей
+
+                                            # После нажатия плей, ждём, пока видео начнёт воспроизводиться
+                                            restart_start_time = time.time()
+                                            restart_timeout = 15  # Увеличенный таймаут до 15 секунд
+
+                                            # Ждём, пока видео действительно начнёт воспроизводиться
+                                            while time.time() - restart_start_time < restart_timeout:
+                                                new_current_time = self.driver.execute_script(
+                                                    "return arguments[0].currentTime;",
+                                                    video_element)
+                                                new_timeline_style = timeline_element.get_attribute("style")
+
+                                                # Проверяем, изменилось ли что-то после перезапуска
+                                                time_started = abs(new_current_time - last_known_time) > 0.1
+                                                timeline_started = new_timeline_style != initial_style
+
+                                                if time_started or timeline_started:
+                                                    print(f"Плеер перезапущен. Время: {new_current_time:.2f}")
+                                                    last_known_time = new_current_time
+                                                    initial_style = new_timeline_style
+                                                    no_change_count = 0  # Сбрасываем счетчик
+                                                    break
+                                                time.sleep(1)
+                                            else:
+                                                # Если видео не начало воспроизводиться в течение 15 секунд - переходим к следующему дню
+                                                print(
+                                                    "Видео не начало воспроизводиться после 15 секунд ожидания, переходим к следующему дню")
+                                                break
+
+                                        except:
+                                            print("Не удалось найти кнопку Play")
+                                            break
+
+                                # Проверяем, достигли ли конца видео
                                 if current_time >= duration - 1:
                                     print("Видео полностью воспроизведено.")
                                     break
+
+                                time.sleep(1)
+
                             except Exception as e:
                                 print(f"Ошибка получения текущего времени: {e}")
-                            time.sleep(1)
+                                break
 
                         end_time = time.time()
                         watch_time = end_time - start_time
