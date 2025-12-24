@@ -2,6 +2,7 @@ import time
 import random
 import allure
 import datetime
+import string
 from selenium.common import TimeoutException
 
 from base.base_page import BasePage
@@ -27,6 +28,16 @@ class OnlineTab(BasePage):
     BUTTON_OPEN_FORMAT_1_1 = ("xpath", "//img[@class='iePNG ch screen-1x1']")  # открыть в формате 1:1
     BUTTON_OPEN_FORMAT_1_4 = ("xpath", "//img[@class='iePNG ch screen-1x4']")  # открыть в формате 1:4
     VIEW_SCREEN = ("xpath", "//div[contains(@class, 'screen')]")  # посмотреть экран (1-4)
+    BUTTON_ADD_CAMERA = ("xpath", "//div[@title='Добавить камеру']")  # кнопка добавить камеру в дерево
+    BUTTON_REMOVE_CAMERA = ("xpath", "//div[@title='Удалить камеру']")  # кнопка удалить камеру в дерево
+    BUTTON_RENAME_CAMERA = ("xpath", "//div[@title='Переименовать камеру']")  # кнопка переименовать камеру в дерево
+    FIELD_INPUT_DEVICE_ACTIVATION_LOGIN = ("xpath", "//input[@name='device_activation_login']")  # поле Логин активации в форме добавления камеры
+    FIELD_INPUT_DEVICE_ACTIVATION_PASSWORD = ("xpath", "//input[@name='device_activation_password']")  # поле Пароль активации в форме добавления камеры
+    BUTTON_SHOW_PASSWORD_IN_FORM_ADD_CAMERA = ("xpath", "//div[@title='Показать пароль']")  # кнопка Показать пароль в форме добавление камеры
+    BUTTON_ADD_IN_FORM_ADD_CAMERA = ("xpath", "//input[@value='Добавить']")  # кнопка Добавить в форме добавление камеры
+    BUTTON_CLOSE_IN_FORM_ADD_CAMERA = ("xpath", "//input[@value='Закрыть']")  # кнопка Закрыть в форме добавление камеры
+    SERVICE_MESSAGE_IN_FORM_ADD_CAMERA = ("xpath", "//div[@class='closable notification s error']")  # служебное сообщение в форме добавление камеры
+    BUTTON_CLOSE_SERVICE_MESSAGE = ("xpath", "//a[@class='close']")  # кнопка закрыть служебное сообщение в форме добавление камеры
 
 
 
@@ -243,5 +254,105 @@ class OnlineTab(BasePage):
     # Вызов основной функции
     if __name__ == "__main__":
         main()
+
+    # НЕГАТИВНАЯ ПРОВЕРКА ДОБАВЛЕНИЯ КАМЕРЫ
+    @allure.step("Negative check adding camera")
+    def execute_negative_camera_add(self):
+        """
+        Основной метод выполнения негативного сценария добавления камеры:
+        - генерирует случайные строки,
+        - выполняет последовательность действий,
+        - проверяет URL,
+        - закрывает драйвер в конце.
+        """
+        # Внутренняя функция для генерации строки
+        def generate_random_string(length=10):
+            """Генерирует случайную строку из букв и цифр."""
+            letters_and_digits = string.ascii_letters + string.digits
+            return ''.join(random.choice(letters_and_digits) for _ in range(length))
+
+        try:
+            # Нажать на кнопку Добавить камеру в дерево
+            add_camera_button = self.wait.until(EC.element_to_be_clickable(self.BUTTON_ADD_CAMERA))
+            add_camera_button.click()
+            print("Кнопка 'Добавить камеру' нажата.")
+
+            # В поле Логин активации ввести рандомный текст
+            time.sleep(2)
+            login_field = self.wait.until(EC.presence_of_element_located(self.FIELD_INPUT_DEVICE_ACTIVATION_LOGIN))
+            random_login = generate_random_string()
+            login_field.send_keys(random_login)
+            time.sleep(2)
+            print(f"В поле логина введено: {random_login}")
+
+            # Нажать кнопку Добавить в форме добавления камеры
+            add_button = self.wait.until(EC.element_to_be_clickable(self.BUTTON_ADD_IN_FORM_ADD_CAMERA))
+            add_button.click()
+            time.sleep(2)
+            print("Кнопка 'Добавить' нажата.")
+
+            # Служебное сообщение в форме добавление камеры
+            service_message_element = self.wait.until(EC.presence_of_element_located(self.SERVICE_MESSAGE_IN_FORM_ADD_CAMERA))
+            service_message_text = service_message_element.text
+            print(f"Текст служебного сообщения: {service_message_text}")
+
+            # Закрыть служебное сообщение в форме добавление камеры
+            close_message_button = self.wait.until(EC.element_to_be_clickable(self.BUTTON_CLOSE_SERVICE_MESSAGE))
+            close_message_button.click()
+            time.sleep(2)
+            print("Служебное сообщение закрыто.")
+
+            # В поле пароль ввести рандомный пароль
+            password_field = self.wait.until(EC.presence_of_element_located(self.FIELD_INPUT_DEVICE_ACTIVATION_PASSWORD))
+            random_password = generate_random_string()
+            password_field.send_keys(random_password)
+            time.sleep(2)
+            print(f"В поле пароля введено: {random_password}")
+
+            # Нажать на кнопку Показать пароль в форме добавление камеры
+            show_password_button = self.wait.until(EC.element_to_be_clickable(self.BUTTON_SHOW_PASSWORD_IN_FORM_ADD_CAMERA))
+            show_password_button.click()
+            time.sleep(2)
+            print("Кнопка 'Показать пароль' нажата.")
+
+            # Нажать на кнопку добавить в форме добавления камеры
+            add_button_click_again = self.wait.until(EC.element_to_be_clickable(self.BUTTON_ADD_IN_FORM_ADD_CAMERA))
+            add_button_click_again.click()
+            time.sleep(2)
+            print("Кнопка 'Добавить' нажата.")
+
+            # Служебное сообщение в форме добавление камеры
+            service_message_element_2 = self.wait.until(EC.presence_of_element_located(self.SERVICE_MESSAGE_IN_FORM_ADD_CAMERA))
+            service_message_text_2 = service_message_element_2.text
+            print(f"Текст служебного сообщения: {service_message_text_2}")
+
+            # Закрыть служебное сообщение в форме добавление камеры
+            close_form_button = self.wait.until(EC.element_to_be_clickable(self.BUTTON_CLOSE_IN_FORM_ADD_CAMERA))
+            close_form_button.click()
+            time.sleep(2)
+            print("Форма добавления камеры закрыта.")
+
+            # Проверка, что вернулись на экран Онлайн (https://x.camdrive.com/online)
+            current_url = self.driver.current_url
+            expected_url = self.PAGE_URL
+            print("Текущий URL:", current_url)
+            print("Ожидаемый URL:", expected_url)
+
+            if current_url != expected_url:
+                print(f"Ошибка в URL, ожидалось {expected_url}, получено {current_url}")
+
+            else:
+                print("Успешно вернулись на экран Онлайн.")
+
+        except Exception as e:
+            print(f"Произошла ошибка: {e}")
+
+        finally:
+            self.driver.quit()
+            print("Браузер закрыт.")
+
+
+
+
 
 
