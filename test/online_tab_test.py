@@ -54,3 +54,12 @@ class TestOnlineTab(BaseTest):
         self.authorization_page.click_enter_button()
         self.online_tab.execute_negative_camera_add()
 
+    @pytest.mark.smoke
+    def test_click_random_inactive_camera(self):
+        self.authorization_page.open()
+        self.authorization_page.enter_login(self.login.LOGIN)
+        self.authorization_page.enter_password(self.login.PASSWORD)
+        self.authorization_page.click_enter_button()
+        self.online_tab.click_random_inactive_camera()
+
+

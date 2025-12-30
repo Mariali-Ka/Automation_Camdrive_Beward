@@ -10,6 +10,7 @@ from config.links import Links
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import StaleElementReferenceException
+from selenium.webdriver.common.by import By
 
 
 
@@ -38,6 +39,7 @@ class OnlineTab(BasePage):
     BUTTON_CLOSE_IN_FORM_ADD_CAMERA = ("xpath", "//input[@value='Закрыть']")  # кнопка Закрыть в форме добавление камеры
     SERVICE_MESSAGE_IN_FORM_ADD_CAMERA = ("xpath", "//div[@class='closable notification s error']")  # служебное сообщение в форме добавление камеры
     BUTTON_CLOSE_SERVICE_MESSAGE = ("xpath", "//a[@class='close']")  # кнопка закрыть служебное сообщение в форме добавление камеры
+    INACTIVE_CAMERA_ITEM = ("xpath", "//li[@rel='channel' and contains(@class, 'device_disconnect')]") # НЕактивные камеры в дереве
 
 
 
@@ -350,6 +352,57 @@ class OnlineTab(BasePage):
         finally:
             self.driver.quit()
             print("Браузер закрыт.")
+
+    # ПОЛУЧЕНИЕ СПИСКА НЕАКТИВНЫХ КАМЕР И ПРОИЗВОЛЬНЫЙ КЛИК ПО НЕАКТИВНОЙ КАМЕРЕ
+    @allure.step("Click cameras random")
+    def click_random_inactive_camera(self):
+        """
+        Ожидаем загрузки списка камер, находим неактивные,
+        выбираем случайную и эмулируем клик по текстовой части.
+        """
+        # Ждём появления хотя бы одной камеры
+        self.wait.until(
+            lambda d: self.driver.find_elements(*self.LIST_DEVICES)
+        )
+        time.sleep(1.5)  # даём jsTree завершить инициализацию
+
+        # Находим все неактивные камеры
+        inactive_cameras = self.driver.find_elements(*self.INACTIVE_CAMERA_ITEM)
+
+        assert inactive_cameras, "Не найдено ни одной неактивной камеры"
+
+        # Выбираем случайную
+        target_li = random.choice(inactive_cameras)
+        a_element = target_li.find_element(By.TAG_NAME, "a")
+
+        camera_name = a_element.text.strip()
+        print(f"Выбрана камера: {camera_name}")
+
+        # Прокручиваем к элементу
+        self.driver.execute_script(
+            "arguments[0].scrollIntoView({block: 'center', behavior: 'instant'});",
+            a_element
+        )
+        time.sleep(0.5)
+
+        # Кликаем через elementFromPoint — как вручную в DevTools
+        success = self.driver.execute_script("""
+            const a = arguments[0];
+            const rect = a.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return false;
+            const x = rect.left + rect.width * 0.8;  // клик по тексту, а не по иконке
+            const y = rect.top + rect.height / 2;
+            const el = document.elementFromPoint(x, y);
+            if (el) {
+                el.click();
+                return true;
+            }
+            return false;
+        """, a_element)
+
+        # Проверяем, что камера выделилась
+        class_attr = a_element.get_attribute("class") or ""
+        assert "jstree-clicked" in class_attr, f"Камера не выделилась. Классы: {class_attr}"
 
 
 
