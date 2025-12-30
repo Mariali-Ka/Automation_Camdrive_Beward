@@ -40,6 +40,14 @@ class OnlineTab(BasePage):
     SERVICE_MESSAGE_IN_FORM_ADD_CAMERA = ("xpath", "//div[@class='closable notification s error']")  # служебное сообщение в форме добавление камеры
     BUTTON_CLOSE_SERVICE_MESSAGE = ("xpath", "//a[@class='close']")  # кнопка закрыть служебное сообщение в форме добавление камеры
     INACTIVE_CAMERA_ITEM = ("xpath", "//li[@rel='channel' and contains(@class, 'device_disconnect')]") # НЕактивные камеры в дереве
+    SCREEN_FORM_REMOVAL_CAMERA = ("xpath", "//div[@class='form-item']")  # экран форма удаления камеры
+    BUTTON_RESEND_CODE = ("xpath", "//input[@name='repeat']")  # кнопка отправить код повторно
+    SERVICE_MESSAGE_IN_FORM_DELETE_CAMERA = ("xpath", "//div[@class='closable notification s success']")  # служебное сообщение в форме удаления камеры
+    BUTTON_CONFIRM = ("xpath", "//input[@id='confirm']")  # кнопка Подтвердить на экране форма удаления камеры
+    BUTTON_CANCEL_DELETE_VIDEO_ARCHIVE = ("xpath", "(//button//span[@class='ui-button-text'])[3]")  # кнопка Отменить удаления видеоархива
+    BUTTON_CLOSE_IN_FORM_DELETE_CAMERA = ("xpath", "//input[contains(@type, 'button')][contains(@value, 'Закрыть')]")  # кнопка Закрыть на экране форма удаления камеры
+    DIALOG_BOX_IN_FORM_DELETE_CAMERA = ("xpath", "//div[@class='ui-dialog-content ui-widget-content']")  # диалоговое окно на экране форма удаления камеры
+    FIELD_INPUT_VERIFICATION_CODE = ("xpath", "//input[@name='code']")  # поле ввода Код подтверждение
 
 
 
@@ -354,7 +362,7 @@ class OnlineTab(BasePage):
             print("Браузер закрыт.")
 
     # ПОЛУЧЕНИЕ СПИСКА НЕАКТИВНЫХ КАМЕР И ПРОИЗВОЛЬНЫЙ КЛИК ПО НЕАКТИВНОЙ КАМЕРЕ
-    @allure.step("Click cameras random")
+    @allure.step("Click random inactive cameras ")
     def click_random_inactive_camera(self):
         """
         Ожидаем загрузки списка камер, находим неактивные,
@@ -403,6 +411,68 @@ class OnlineTab(BasePage):
         # Проверяем, что камера выделилась
         class_attr = a_element.get_attribute("class") or ""
         assert "jstree-clicked" in class_attr, f"Камера не выделилась. Классы: {class_attr}"
+
+    # ПРОВЕРКА ПОПЫТКА УДАЛЕНИЯ КАМЕРЫ ИЗ СПИСКА В ДЕРЕВЕ
+    @allure.step("Attempting to delete the camera ")
+    def generate_random_code(self, length=6):
+        return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
+    def attempting_delete_camera(self):
+
+        try:
+
+            # 1. Нажать на кнопку "Удалить камеру"
+            remove_btn = self.wait.until(EC.element_to_be_clickable(self.BUTTON_REMOVE_CAMERA))
+            remove_btn.click()
+
+            # 2. Проверить, что появилась форма удаления камеры
+            form = self.wait.until(EC.presence_of_element_located(self.SCREEN_FORM_REMOVAL_CAMERA))
+            assert form.is_displayed(), "Форма удаления камеры не отображается"
+            print(f"Текст формы удаления камеры:\n{form.text}")
+
+            # 3. Ввести случайный код подтверждения
+            code_field = self.wait.until(EC.presence_of_element_located(self.FIELD_INPUT_VERIFICATION_CODE))
+            random_code = self.generate_random_code()
+            code_field.send_keys(random_code)
+
+            # 4. Нажать кнопку "Подтвердить"
+            confirm_btn = self.wait.until(EC.element_to_be_clickable(self.BUTTON_CONFIRM))
+            confirm_btn.click()
+
+            # 5. Проверить диалоговое окно и вывести его текст
+            dialog = self.wait.until(EC.presence_of_element_located(self.DIALOG_BOX_IN_FORM_DELETE_CAMERA))
+            assert dialog.is_displayed(), "Диалоговое окно не появилось"
+            print(f"Текст диалогового окна:\n{dialog.text}")
+
+            # 6. Нажать "Отменить"
+            cancel_btn = self.wait.until(EC.element_to_be_clickable(self.BUTTON_CANCEL_DELETE_VIDEO_ARCHIVE))
+            cancel_btn.click()
+
+            # 7. Нажать "Отправить код повторно"
+            resend_btn = self.wait.until(EC.element_to_be_clickable(self.BUTTON_RESEND_CODE))
+            resend_btn.click()
+
+            # 8. Проверить служебное сообщение и вывести его текст
+            service_msg = self.wait.until(EC.presence_of_element_located(self.SERVICE_MESSAGE_IN_FORM_DELETE_CAMERA))
+            assert service_msg.is_displayed(), "Служебное сообщение не появилось"
+            print(f"Служебное сообщение:\n{service_msg.text}")
+
+            # 9. Нажать "Закрыть"
+            close_btn = self.wait.until(EC.element_to_be_clickable(self.BUTTON_CLOSE_IN_FORM_DELETE_CAMERA))
+            close_btn.click()
+
+            # 10. Проверяем, что форма удаления закрылась
+            self.wait.until(
+                EC.invisibility_of_element_located(self.SCREEN_FORM_REMOVAL_CAMERA),
+                message="Форма удаления камеры не исчезла после нажатия 'Закрыть'"
+            )
+            print("Форма удаления закрыта. Пользователь остался на странице онлайн.")
+
+        except Exception as e:
+            print(f"Произошла ошибка во время выполнения теста: {e}")
+            raise
+
+
+
 
 
 
