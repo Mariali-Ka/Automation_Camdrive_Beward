@@ -96,15 +96,56 @@ class OnlineTab(BasePage):
         self.driver.get("https://x.camdrive.com/")
         time.sleep(5)
 
-    # ПОЛУЧЕНИЕ СПИСКА КАМЕР И ПРОИЗВОЛЬНЫЙ КЛИК ПО КАМЕРЕ
-    @allure.step("Click cameras random")
-    def click_cameras_random(self):
-        device_list = self.wait.until(EC.presence_of_all_elements_located(self.LIST_DEVICES))
-        if device_list:
-          random_element = random.choice(device_list)
-          random_element.click()
-        else:
-            print("Не найден список устройств")
+    # ПОЛУЧЕНИЕ СПИСКА КАМЕР И ПРОИЗВОЛЬНЫЙ КЛИК ПО АКТИВНОЙ КАМЕРЕ
+    @allure.step("Click random active camera")
+    def click_random_active_camera(self):
+        """
+        Ожидаем загрузки списка камер, находим активные,
+        выбираем случайную и эмулируем клик по текстовой части.
+        """
+        # Ждём появления хотя бы одной камеры
+        self.wait.until(
+            lambda d: self.driver.find_elements(*self.LIST_DEVICES)
+        )
+        time.sleep(1.5)  # даём jsTree завершить инициализацию
+
+        # Находим все активные камеры
+        active_cameras = self.driver.find_elements(*self.ACTIVE_CAMERAS_INSIDE_LIST)
+
+        assert active_cameras, "Не найдено ни одной неактивной камеры"
+
+        # Выбираем случайную
+        target_li = random.choice(active_cameras)
+        a_element = target_li.find_element(By.TAG_NAME, "a")
+
+        camera_name = a_element.text.strip()
+        print(f"Выбрана камера: {camera_name}")
+
+        # Прокручиваем к элементу
+        self.driver.execute_script(
+            "arguments[0].scrollIntoView({block: 'center', behavior: 'instant'});",
+            a_element
+        )
+        time.sleep(0.5)
+
+        # Кликаем через elementFromPoint — как вручную в DevTools
+        success = self.driver.execute_script("""
+            const a = arguments[0];
+            const rect = a.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return false;
+            const x = rect.left + rect.width * 0.8;  // клик по тексту, а не по иконке
+            const y = rect.top + rect.height / 2;
+            const el = document.elementFromPoint(x, y);
+            if (el) {
+                el.click();
+                return true;
+            }
+            return false;
+        """, a_element)
+
+        # Проверяем, что камера выделилась
+        class_attr = a_element.get_attribute("class") or ""
+        assert "jstree-clicked" in class_attr, f"Камера не выделилась. Классы: {class_attr}"
 
     # ПРОВЕРКА ОНЛАЙН-ТРАНСЛЯЦИИ
     @allure.step("Check online broadcast")

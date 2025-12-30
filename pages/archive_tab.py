@@ -13,6 +13,7 @@ from base.base_page import BasePage
 from config.links import Links
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.by import By
 from selenium.common.exceptions import StaleElementReferenceException
 
 # Настройка Chrome
@@ -59,6 +60,7 @@ class ArchiveTab(BasePage):
     TIMELINE_CONTROLBAR = ("xpath", "//div[contains(@class, 'player-main-controlbar-seek-progress-left')][contains(@style, 'width')]")  # таймлайн плейера
     BUTTON_PAUSE_CONTROLBAR = ("xpath", "//div[@class='player-main-controlbar-play player-main-controlbar-pause']")  # кнопка pause в плеере
     BUTTON_PLAY_CONTROLBAR = ("xpath", "//div[@class='player-main-controlbar-play']")  # кнопка play в плеере
+    LIST_DEVICES = ("xpath", "//li[contains(@rel, 'channel')]")  # список камер
 
     # ОТКРЫВАЕМ ВКЛАДКУ АРХИВ
     @allure.step("Go to archive tab")
@@ -207,41 +209,53 @@ class ArchiveTab(BasePage):
     # ПОЛУЧЕНИЕ СПИСКА КАМЕР. ВЫБОР ИЗ СПИСКА АКТИВНЫЕ КАМЕРЫ. РАНДОМНО НАЖАТЬ НА АКТИВНУЮ КАМЕРУ.
     allure.step("Active cameras inside list")
     def active_cameras_inside_list(self):
-        try:
-            active_cameras = self.wait.until(EC.presence_of_all_elements_located(self.ACTIVE_CAMERAS_INSIDE_LIST))
+        """
+        Ожидаем загрузки списка камер, находим активные,
+        выбираем случайную и эмулируем клик по текстовой части.
+        """
+        # Ждём появления хотя бы одной камеры
+        self.wait.until(
+            lambda d: self.driver.find_elements(*self.LIST_DEVICES)
+        )
+        time.sleep(1.5)  # даём jsTree завершить инициализацию
 
-            if not active_cameras:
-                print("Активных камер не найдено.")
-                assert False, "Активные камеры не найдены."
-            else:
-                # Рандомно выбираем один индекс, чтобы избежать stale при долгой задержке
-                random_index = random.randint(0, len(active_cameras) - 1)
-                print(f"Выбран индекс камеры: {random_index}")
+        # Находим все активные камеры
+        active_cameras = self.driver.find_elements(*self.ACTIVE_CAMERAS_INSIDE_LIST)
 
-                # Цикл для повторной попытки клика в случае StaleElementReferenceException
-                max_attempts = 3
-                for attempt in range(max_attempts):
-                    try:
-                        # Повторно локейтим элемент, чтобы избежать stale
-                        random_camera = self.wait.until(EC.presence_of_all_elements_located(self.ACTIVE_CAMERAS_INSIDE_LIST))[
-                            random_index]
-                        random_camera.click()
-                        print("Случайная активная камера выбрана и нажата.")
-                        break  # Успешно кликнули — выходим из цикла
-                    except StaleElementReferenceException:
-                        print(f"StaleElementReferenceException на попытке {attempt + 1}, пробуем снова...")
-                        time.sleep(1)
-                        continue
-                else:
-                    print("Не удалось кликнуть по элементу после нескольких попыток.")
-                    assert False, "Не удалось кликнуть по активной камере из-за StaleElementReferenceException."
+        assert active_cameras, "Не найдено ни одной активной камеры"
 
-        except Exception as e:
-            print(f"Произошла ошибка: {e}")
-            assert False, f"Ошибка в методе active_cameras_inside_list: {e}"
+        # Выбираем случайную
+        target_li = random.choice(active_cameras)
+        a_element = target_li.find_element(By.TAG_NAME, "a")
 
-        finally:
-            pass
+        camera_name = a_element.text.strip()
+        print(f"Выбрана камера: {camera_name}")
+
+        # Прокручиваем к элементу
+        self.driver.execute_script(
+            "arguments[0].scrollIntoView({block: 'center', behavior: 'instant'});",
+            a_element
+        )
+        time.sleep(0.5)
+
+        # Кликаем через elementFromPoint — как вручную в DevTools
+        success = self.driver.execute_script("""
+            const a = arguments[0];
+            const rect = a.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return false;
+            const x = rect.left + rect.width * 0.8;  // клик по тексту, а не по иконке
+            const y = rect.top + rect.height / 2;
+            const el = document.elementFromPoint(x, y);
+            if (el) {
+                el.click();
+                return true;
+            }
+            return false;
+        """, a_element)
+
+        # Проверяем, что камера выделилась
+        class_attr = a_element.get_attribute("class") or ""
+        assert "jstree-clicked" in class_attr, f"Камера не выделилась. Классы: {class_attr}"
 
     # ПРОВЕРКА ВОСПРОИЗВЕДЕНИЯ В ОДНОМ РАНДОМНОМ ДНЕ РАНДОМНО ОДИН ФРАГМЕНТ ЗАПИСИ
     allure.step("Viewing fragment from camera")
