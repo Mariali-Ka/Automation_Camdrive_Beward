@@ -99,53 +99,63 @@ class OnlineTab(BasePage):
     # ПОЛУЧЕНИЕ СПИСКА КАМЕР И ПРОИЗВОЛЬНЫЙ КЛИК ПО АКТИВНОЙ КАМЕРЕ
     @allure.step("Click random active camera")
     def click_random_active_camera(self):
-        """
-        Ожидаем загрузки списка камер, находим активные,
-        выбираем случайную и эмулируем клик по текстовой части.
-        """
-        # Ждём появления хотя бы одной камеры
-        self.wait.until(
-            lambda d: self.driver.find_elements(*self.LIST_DEVICES)
-        )
-        time.sleep(1.5)  # даём jsTree завершить инициализацию
+        print(">>> Функция запущена <<<")
+        print("Шаг 1: Ожидание списка устройств...")
+        try:
+            self.wait.until(lambda d: self.driver.find_elements(*self.LIST_DEVICES))
+            print("Список устройств найден.")
+        except Exception as e:
+            print(f"Ошибка ожидания списка устройств: {e}")
+            raise
 
-        # Находим все активные камеры
-        active_cameras = self.driver.find_elements(*self.ACTIVE_CAMERAS_INSIDE_LIST)
+        time.sleep(1.5)
 
-        assert active_cameras, "Не найдено ни одной неактивной камеры"
+        print("Шаг 2: Поиск активных камер...")
+        try:
+            active_cameras = self.driver.find_elements(*self.ACTIVE_CAMERAS_INSIDE_LIST)
+            print(f"Найдено {len(active_cameras)} активных камер.")
+        except Exception as e:
+            print(f"Ошибка поиска активных камер: {e}")
+            raise
 
-        # Выбираем случайную
+        assert active_cameras, "Не найдено ни одной активной камеры"
+
         target_li = random.choice(active_cameras)
         a_element = target_li.find_element(By.TAG_NAME, "a")
 
         camera_name = a_element.text.strip()
         print(f"Выбрана камера: {camera_name}")
 
-        # Прокручиваем к элементу
-        self.driver.execute_script(
-            "arguments[0].scrollIntoView({block: 'center', behavior: 'instant'});",
-            a_element
-        )
+        print("Шаг 3: Проверка видимости и кликабельности...")
+        print("Is displayed?", a_element.is_displayed())
+        print("Is enabled?", a_element.is_enabled())
+
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", a_element)
         time.sleep(0.5)
 
-        # Кликаем через elementFromPoint — как вручную в DevTools
-        success = self.driver.execute_script("""
-            const a = arguments[0];
-            const rect = a.getBoundingClientRect();
-            if (rect.width === 0 || rect.height === 0) return false;
-            const x = rect.left + rect.width * 0.8;  // клик по тексту, а не по иконке
-            const y = rect.top + rect.height / 2;
-            const el = document.elementFromPoint(x, y);
-            if (el) {
-                el.click();
-                return true;
-            }
-            return false;
-        """, a_element)
+        print("Шаг 4: Проверка кликабельности...")
+        try:
+            self.wait.until(EC.element_to_be_clickable(a_element))
+            print("✓ Элемент кликабелен.")
+        except Exception as e:
+            print(f"Элемент не кликабелен: {e}")
+            self.driver.save_screenshot("not_clickable.png")
+            raise
 
-        # Проверяем, что камера выделилась
+        print("Шаг 5: Клик по элементу...")
+        try:
+            a_element.click()
+            print("✓ Клик выполнен успешно.")
+        except Exception as e:
+            print(f"Ошибка клика: {e}")
+            self.driver.save_screenshot("click_failed.png")
+            raise
+
+        print("Шаг 6: Проверка выделения...")
         class_attr = a_element.get_attribute("class") or ""
+        print(f"Классы элемента: {class_attr}")
         assert "jstree-clicked" in class_attr, f"Камера не выделилась. Классы: {class_attr}"
+        print("Камера успешно выделена.")
 
     # ПРОВЕРКА ОНЛАЙН-ТРАНСЛЯЦИИ
     @allure.step("Check online broadcast")
