@@ -48,6 +48,8 @@ class OnlineTab(BasePage):
     BUTTON_CLOSE_IN_FORM_DELETE_CAMERA = ("xpath", "//input[contains(@type, 'button')][contains(@value, 'Закрыть')]")  # кнопка Закрыть на экране форма удаления камеры
     DIALOG_BOX_IN_FORM_DELETE_CAMERA = ("xpath", "//div[@class='ui-dialog-content ui-widget-content']")  # диалоговое окно на экране форма удаления камеры
     FIELD_INPUT_VERIFICATION_CODE = ("xpath", "//input[@name='code']")  # поле ввода Код подтверждение
+    CAMERA_SELECTED_ITEM = ("xpath", "//a[contains(@class, 'jstree-clicked')]")  # камера выделена в дереве
+    INPUT_RENAME_NAME_CAMERA = ("xpath", "//input[@class='jstree-rename-input']")  # поле редактирования наименования камеры
 
 
 
@@ -531,6 +533,137 @@ class OnlineTab(BasePage):
         except Exception as e:
             print(f"Произошла ошибка во время выполнения теста: {e}")
             raise
+
+    # ПРОВЕРКА РЕДАКТИРОВАНИЕ НАИМЕНОВАНИЕ КАМЕРЫ В СПИСКЕ ДЕРЕВА
+    @allure.step("Edit camera name")
+    def edit_camera_name(self):
+
+        # 1. Получаем имя выбранной камеры и проверяем, что элемент выбранной камеры доступен
+
+        self.wait.until(EC.presence_of_element_located(self.CAMERA_SELECTED_ITEM))
+        selected_camera_a = self.driver.find_element(*self.CAMERA_SELECTED_ITEM)
+        original_name = selected_camera_a.text.strip()
+
+        print(f"Выбрана неактивная камера: {original_name}")
+
+        # 2. Первое редактирование
+        print("Начало первого редактирования")
+
+        rename_button = self.driver.find_element(*self.BUTTON_RENAME_CAMERA)
+        rename_button.click()
+
+        self.wait.until(EC.presence_of_element_located(self.INPUT_RENAME_NAME_CAMERA))
+        self.wait.until(EC.element_to_be_clickable(self.INPUT_RENAME_NAME_CAMERA))
+        print("Поле ввода найдено и стабильно после клика на кнопку переименования.")
+
+        # Генерируем рандомные символы для добавления
+        random_chars = ''.join(random.choices(string.ascii_letters + string.digits, k=5))
+
+        # ИСПОЛЬЗУЕМ ЕДИНЫЙ ВЫЗОВ JAVASCRIPT
+        input_field_for_js = self.wait.until(EC.presence_of_element_located(self.INPUT_RENAME_NAME_CAMERA))
+        current_value = input_field_for_js.get_attribute('value')
+        new_value_with_random = current_value + random_chars
+
+        js_script = """
+            var element = arguments[0];
+            var newValue = arguments[1];
+
+            element.value = newValue;
+            var changeEvent = new Event('change');
+            element.dispatchEvent(changeEvent);
+
+            var keydownEvent = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
+            element.dispatchEvent(keydownEvent);
+
+            var keypressEvent = new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
+            element.dispatchEvent(keypressEvent);
+
+            var keyupEvent = new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
+            element.dispatchEvent(keyupEvent);
+        """
+
+        self.driver.execute_script(js_script, input_field_for_js, new_value_with_random)
+        time.sleep(1)  # обязательно пауза здесь
+
+        # Ждем, пока текст элемента выбранной камеры изменится на новое значение
+        try:
+            self.wait.until(
+                lambda d: self.driver.find_element(*self.CAMERA_SELECTED_ITEM).text.strip() != original_name)
+        except Exception as e:
+            print(f"Не удалось дождаться изменения имени камеры после первого редактирования: {e}")
+            current_camera_name = self.driver.find_element(*self.CAMERA_SELECTED_ITEM).text.strip()
+            print(f"Текущее имя камеры: '{current_camera_name}'")
+            raise  # Перевыбрасываем исключение
+
+        updated_camera_a_after_first_edit = self.driver.find_element(*self.CAMERA_SELECTED_ITEM)
+        first_edited_name = updated_camera_a_after_first_edit.text.strip()
+
+        print(f"Наименование камеры после первого редактирования: '{first_edited_name}'")
+
+        assert first_edited_name == new_value_with_random, f"Ожидалось: '{new_value_with_random}', получено: '{first_edited_name}'"
+        print("Первое редактирование завершено")
+
+        # 3. Второе редактирование
+        print("Начало второго редактирования")
+
+        # Ожидаем и убеждаемся, что кнопка снова доступна
+        self.wait.until(EC.element_to_be_clickable(self.BUTTON_RENAME_CAMERA))
+
+        rename_button = self.driver.find_element(*self.BUTTON_RENAME_CAMERA)
+        rename_button.click()
+
+        self.wait.until(EC.presence_of_element_located(self.INPUT_RENAME_NAME_CAMERA))
+        self.wait.until(EC.element_to_be_clickable(self.INPUT_RENAME_NAME_CAMERA))
+        print("Поле ввода найдено и стабильно для второго редактирования.")
+
+        # ИСПОЛЬЗУЕМ ЕДИНЫЙ ВЫЗОВ JAVASCRIPT
+        input_field_second_for_js = self.wait.until(EC.presence_of_element_located(self.INPUT_RENAME_NAME_CAMERA))
+        current_value_second = input_field_second_for_js.get_attribute('value')
+        expected_restored_name = current_value_second[:-len(random_chars)]
+
+        js_script_second = """
+            var element = arguments[0];
+            var newValue = arguments[1];
+
+            element.value = newValue;
+            var changeEvent = new Event('change');
+            element.dispatchEvent(changeEvent);
+
+            var keydownEvent = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
+            element.dispatchEvent(keydownEvent);
+
+            var keypressEvent = new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
+            element.dispatchEvent(keypressEvent);
+
+            var keyupEvent = new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
+            element.dispatchEvent(keyupEvent);
+        """
+
+        self.driver.execute_script(js_script_second, input_field_second_for_js, expected_restored_name)
+        time.sleep(1)  # обязательно пауза здесь
+
+        # Ждем, пока текст элемента выбранной камеры вернётся к исходному
+        try:
+            self.wait.until(
+                lambda d: self.driver.find_element(*self.CAMERA_SELECTED_ITEM).text.strip() == original_name)
+        except Exception as e:
+            print(f"Не удалось дождаться возврата к исходному имени камеры после второго редактирования: {e}")
+            current_camera_name = self.driver.find_element(*self.CAMERA_SELECTED_ITEM).text.strip()
+            print(f"Текущее имя камеры: '{current_camera_name}'")
+            raise  # Перевыбрасываем исключение
+
+        updated_camera_a_after_second_edit = self.driver.find_element(*self.CAMERA_SELECTED_ITEM)
+        final_name = updated_camera_a_after_second_edit.text.strip()
+
+        print(f"Наименование камеры после второго редактирования: '{final_name}'")
+
+        assert final_name == original_name, f"Ожидалось: '{original_name}', получено: '{final_name}'"
+        print("Второе редактирование завершено")
+
+        assert random_chars in first_edited_name, "Рандомные символы не были добавлены при первом редактировании"
+        assert random_chars not in final_name, "Рандомные символы не были удалены при втором редактировании"
+
+        print("Все проверки пройдены успешно!")
 
 
 
