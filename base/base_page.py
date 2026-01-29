@@ -97,6 +97,18 @@ class BasePage:
             self.driver.execute_script("document.getElementsByTagName('footer')[0].remove();")
             self.driver.execute_script("document.getElementsById('close-fixedban').remove();")
 
+    @allure.step('Execute js')
+    def execute_js(self, script, *args):
+        return self.driver.execute_script(script, *args)
+
+    @allure.step('Wait until visible')
+    def wait_until_visible(self, locator):
+        return self.wait.until(EC.visibility_of_element_located(locator))
+
+    @allure.step('Wait until clickable')
+    def wait_until_clickable(self, locator):
+        return self.wait.until(EC.element_to_be_clickable(locator))
+
     # @allure.step('Open new window')
     # def open_new_window(self):
     #     self.driver.new_window("tab")
