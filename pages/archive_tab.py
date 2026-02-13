@@ -90,7 +90,7 @@ class ArchiveTab(BasePage):
         print(f"Новый месяц после нажатия: {new_month_text}")
         assert new_month_text != current_month_text, "Месяц не изменился после нажатия кнопки"
 
-    # ПЕРЕХОД НА БУДУЩИЙ МЕСЯЦ
+    # ВОЗВРАЩЕНИЕ К ИСХОДНОМУ МЕСЯЦУ
     @allure.step("Go to one month advance calendar")
     def click_go_to_one_month_advance_calendar(self):
         self.wait.until(EC.element_to_be_clickable(self.BUTTON_HEADING_R_NEXT)).click()

@@ -315,11 +315,12 @@ class OnlineTab(BasePage):
             self.driver.quit()
 
     # Вызов основной функции
+
     if __name__ == "__main__":
         main()
 
     # НЕГАТИВНАЯ ПРОВЕРКА ДОБАВЛЕНИЯ КАМЕРЫ
-    @allure.step("Negative check adding camera")
+    @allure.step("Negative check adding camera")а
     def execute_negative_camera_add(self):
         """
         Основной метод выполнения негативного сценария добавления камеры:

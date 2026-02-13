@@ -8,7 +8,7 @@ from base.base_test import BaseTest
 class TestArchiveTab(BaseTest):
 
     @pytest.mark.smoke
-    def test_days_of_week_displayed_correctly_calendar(self):
+    def test_go_to_archive_tab(self):
         self.authorization_page.open()
         self.authorization_page.enter_login(self.login.LOGIN)
         self.authorization_page.enter_password(self.login.PASSWORD)
