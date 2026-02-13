@@ -80,4 +80,12 @@ class TestOnlineTab(BaseTest):
         self.online_tab.click_random_inactive_camera()
         self.online_tab.edit_camera_name()
 
+    @pytest.mark.smoke
+    def test_manage_camera_groups(self):
+        self.authorization_page.open()
+        self.authorization_page.enter_login(self.login.LOGIN)
+        self.authorization_page.enter_password(self.login.PASSWORD)
+        self.authorization_page.click_enter_button()
+        self.online_tab.manage_camera_groups()
+
 

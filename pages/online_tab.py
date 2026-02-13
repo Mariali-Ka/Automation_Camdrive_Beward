@@ -50,6 +50,11 @@ class OnlineTab(BasePage):
     FIELD_INPUT_VERIFICATION_CODE = ("xpath", "//input[@name='code']")  # поле ввода Код подтверждение
     CAMERA_SELECTED_ITEM = ("xpath", "//a[contains(@class, 'jstree-clicked')]")  # камера выделена в дереве
     INPUT_RENAME_NAME_CAMERA = ("xpath", "//input[@class='jstree-rename-input']")  # поле редактирования наименования камеры
+    GROUP_MY_CAMERAS = (By.XPATH, "//a[text()='Мои камеры']") # группа Мои камеры
+    CREATE_GROUP_BUTTON = (By.XPATH, "//div[@id='create-group']") # кнопка добавить группу
+    RENAME_GROUP_BUTTON = (By.XPATH, "//div[@id='rename-group']") # кнопка переименовать группу
+    REMOVE_GROUP_BUTTON = (By.XPATH, "//div[@id='remove-group']") # кнопка удалить группу
+    NEW_GROUP_INPUT = (By.XPATH, "//input[@value='Новая группа']") # поле ввода Новая группа
 
 
 
@@ -540,7 +545,7 @@ class OnlineTab(BasePage):
     @allure.step("Edit camera name")
     def edit_camera_name(self):
 
-        # 1. Получаем имя выбранной камеры и проверяем, что элемент выбранной камеры доступен
+        # Получаем имя выбранной камеры и проверяем, что элемент выбранной камеры доступен
 
         self.wait.until(EC.presence_of_element_located(self.CAMERA_SELECTED_ITEM))
         selected_camera_a = self.driver.find_element(*self.CAMERA_SELECTED_ITEM)
@@ -548,7 +553,7 @@ class OnlineTab(BasePage):
 
         print(f"Выбрана неактивная камера: {original_name}")
 
-        # 2. Первое редактирование
+        # Первое редактирование
         print("Начало первого редактирования")
 
         rename_button = self.driver.find_element(*self.BUTTON_RENAME_CAMERA)
@@ -605,7 +610,7 @@ class OnlineTab(BasePage):
         assert first_edited_name == new_value_with_random, f"Ожидалось: '{new_value_with_random}', получено: '{first_edited_name}'"
         print("Первое редактирование завершено")
 
-        # 3. Второе редактирование
+        # Второе редактирование
         print("Начало второго редактирования")
 
         # Ожидаем и убеждаемся, что кнопка снова доступна
@@ -668,8 +673,126 @@ class OnlineTab(BasePage):
         print("Все проверки пройдены успешно!")
 
 
+    # СОЗДАНИЕ, РЕДАКТИРОВАНИЕ И УДАЛЕНИЕ ГРУППЫ
+    @allure.step("Manage camera groups")
+    def manage_camera_groups(self):
+        """
+        Метод для управления группами камер: создание, переименование, удаление.
+        """
 
+        def group_not_present_in_tree(driver, group_name):
+            """Внутренняя функция ожидания, которая возвращает True, если группа не найдена."""
+            # Получаем все элементы input с атрибутом value
+            all_input_elements = driver.find_elements(By.XPATH, "//input[@value]")
+            # Проверяем, есть ли среди них элемент с конкретным именем
+            for elem in all_input_elements:
+                if elem.get_attribute("value") == group_name:
+                    # Если нашли, значит группа всё ещё присутствует
+                    return False
+            # Если цикл прошёлся по всем элементам и не нашёл совпадений - группа удалена
+            return True
 
+        # Нажимаем на группу "Мои камеры"
+        print("Нажимаю на 'Мои камеры'")
+        my_cameras_group_element = self.wait.until(EC.element_to_be_clickable(self.GROUP_MY_CAMERAS))
+        my_cameras_group_element.click()
+
+        # Добавляем группу
+        print("Нажимаю на кнопку 'Добавить группу'")
+        create_group_element = self.wait.until(EC.element_to_be_clickable(self.CREATE_GROUP_BUTTON))
+        create_group_element.click()
+
+        # Ищем поле ввода "Новая группа", сгенерировать случайное имя и сохранить
+        print("В поле 'Новая группа' ввожу новое название")
+        new_group_input_element = self.wait.until(EC.element_to_be_clickable(self.NEW_GROUP_INPUT))
+
+        # Генерируем рандомные символы для нового названия
+        random_chars_creation = ''.join(random.choices(string.ascii_letters + string.digits, k=5))
+        new_name_creation = random_chars_creation
+
+        # Используем JavaScript для ввода и эмуляции Enter
+        js_script_creation = """
+            var element = arguments[0];
+            var newValue = arguments[1];
+
+            element.value = newValue;
+            var changeEvent = new Event('change');
+            element.dispatchEvent(changeEvent);
+
+            var keydownEvent = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
+            element.dispatchEvent(keydownEvent);
+
+            var keypressEvent = new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
+            element.dispatchEvent(keypressEvent);
+
+            var keyupEvent = new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
+            element.dispatchEvent(keyupEvent);
+        """
+
+        self.driver.execute_script(js_script_creation, new_group_input_element, new_name_creation)
+        time.sleep(1)  # Обязательная пауза после выполнения скрипта
+
+        print(f"Создана группа: '{new_name_creation}'")
+
+        # Переименовываем группу
+        print("Приступаю к переименовании группы")
+        created_group_display_element = self.wait.until(
+            EC.element_to_be_clickable((By.XPATH, f"//a[text()='{new_name_creation}']")))
+        created_group_display_element.click()
+
+        rename_button_element = self.wait.until(EC.element_to_be_clickable(self.RENAME_GROUP_BUTTON))
+        rename_button_element.click()
+
+        # Ждем, пока поле ввода снова станет активным и кликабельным
+        self.wait.until(EC.element_to_be_clickable((By.XPATH, f"//input[@value='{new_name_creation}']")))
+
+        # Находим поле ввода снова после клика по кнопке переименования
+        input_field_rename_for_js = self.driver.find_element(By.XPATH, f"//input[@value='{new_name_creation}']")
+
+        # Генерируем новые рандомные символы для переименования
+        random_chars_rename = ''.join(random.choices(string.ascii_letters + string.digits, k=5))
+        new_name_rename = random_chars_rename
+
+        js_script_rename = """
+            var element = arguments[0];
+            var newValue = arguments[1];
+
+            element.value = newValue;
+            var changeEvent = new Event('change');
+            element.dispatchEvent(changeEvent);
+
+            var keydownEvent = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
+            element.dispatchEvent(keydownEvent);
+
+            var keypressEvent = new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
+            element.dispatchEvent(keypressEvent);
+
+            var keyupEvent = new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
+            element.dispatchEvent(keyupEvent);
+        """
+
+        self.driver.execute_script(js_script_rename, input_field_rename_for_js, new_name_rename)
+        time.sleep(1)  # Обязательная пауза после выполнения скрипта
+
+        print(f"Переименованная группа: '{new_name_rename}'")
+
+        # Удаление группу
+        print("Приступаю к удалению группы")
+        renamed_group_display_element = self.wait.until(
+            EC.element_to_be_clickable((By.XPATH, f"//a[text()='{new_name_rename}']")))
+        renamed_group_display_element.click()
+
+        remove_button_element = self.wait.until(EC.element_to_be_clickable(self.REMOVE_GROUP_BUTTON))
+        remove_button_element.click()
+
+        # Проверяем, что группа удалена
+        print("Проверяю, что группа удалена")
+
+        try:
+            self.wait.until(lambda driver: group_not_present_in_tree(driver, new_name_rename))
+            print(f"Группа '{new_name_rename}' успешно удалена. Подтверждение: её больше нет в списке.")
+        except Exception as e:
+            print(f"Ошибка при проверке удаления группы '{new_name_rename}': {e}")
 
 
 
