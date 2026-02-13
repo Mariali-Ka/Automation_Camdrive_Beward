@@ -39,7 +39,7 @@ class TestOnlineTab(BaseTest):
         self.online_tab.make_screenshot("Подтверждение открытия второго окна")
 
     @pytest.mark.smoke
-    def test_checking_live_broadcast(self):
+    def test_online_verification(self):
         self.authorization_page.open()
         self.authorization_page.enter_login(self.login.LOGIN)
         self.authorization_page.enter_password(self.login.PASSWORD)

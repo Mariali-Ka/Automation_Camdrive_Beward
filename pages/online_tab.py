@@ -160,7 +160,7 @@ class OnlineTab(BasePage):
         print("Камера успешно выделена.")
 
     # ПРОВЕРКА ОНЛАЙН-ТРАНСЛЯЦИИ
-    @allure.step("Check online broadcast")
+    @allure.step("Online Verification")
     def main(self):
         """
         Основная функция выполнения сценария:
@@ -180,7 +180,8 @@ class OnlineTab(BasePage):
 
         def close_all_opened_screens():
             """Закрывает все открытые экраны, если они есть."""
-            all_close_buttons = self.wait.until(EC.presence_of_all_elements_located(self.BUTTON_CLOSE_SCREEN))
+            all_close_buttons = self.driver.find_elements(*self.BUTTON_CLOSE_SCREEN)
+
             if all_close_buttons and len(all_close_buttons) > 0:
                 print(f"Найдено {len(all_close_buttons)} кнопок закрытия экрана.")
                 make_screenshot("before_closing_all_screens")
@@ -189,7 +190,7 @@ class OnlineTab(BasePage):
                 for i in range(len(all_close_buttons)):
                     try:
                         # Повторно ищем кнопки, так как DOM может измениться после каждого закрытия
-                        close_button = self.wait.until(EC.presence_of_all_elements_located(self.BUTTON_CLOSE_SCREEN))
+                        close_button = self.driver.find_elements(*self.BUTTON_CLOSE_SCREEN)
                         if close_button and len(close_button) > 0:
                             close_button[0].click()
                             print(f"Кнопка закрытия экрана нажата ({i + 1}/{len(all_close_buttons)})")
@@ -320,7 +321,7 @@ class OnlineTab(BasePage):
         main()
 
     # НЕГАТИВНАЯ ПРОВЕРКА ДОБАВЛЕНИЯ КАМЕРЫ
-    @allure.step("Negative check adding camera")а
+    @allure.step("Negative check adding camera")
     def execute_negative_camera_add(self):
         """
         Основной метод выполнения негативного сценария добавления камеры:
