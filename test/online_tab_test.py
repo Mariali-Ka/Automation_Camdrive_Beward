@@ -10,7 +10,7 @@ from base.base_test import BaseTest
 
 
 @allure.feature("Online Tab Functionality")
-class TestOnlineTab(BaseTest):
+class  TestOnlineTab(BaseTest):
 
     @pytest.mark.smoke
     def test_transposition_cameras(self):
@@ -87,5 +87,13 @@ class TestOnlineTab(BaseTest):
         self.authorization_page.enter_password(self.login.PASSWORD)
         self.authorization_page.click_enter_button()
         self.online_tab.manage_camera_groups()
+
+    @pytest.mark.smoke
+    def test_search_and_verify_devices(self):
+        self.authorization_page.open()
+        self.authorization_page.enter_login(self.login.LOGIN)
+        self.authorization_page.enter_password(self.login.PASSWORD)
+        self.authorization_page.click_enter_button()
+        self.online_tab.search_and_verify_devices()
 
 

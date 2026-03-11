@@ -55,6 +55,11 @@ class OnlineTab(BasePage):
     RENAME_GROUP_BUTTON = (By.XPATH, "//div[@id='rename-group']") # кнопка переименовать группу
     REMOVE_GROUP_BUTTON = (By.XPATH, "//div[@id='remove-group']") # кнопка удалить группу
     NEW_GROUP_INPUT = (By.XPATH, "//input[@value='Новая группа']") # поле ввода Новая группа
+    BUTTON_SEARCH_DEVICES = ("xpath", "//div[@id='display-search']")  # кнопка поиск устройств
+    SEARCH_INPUT = ("xpath", "//input[@id='search_input']")  # ввод поле в поиск
+    BLOG_SEARCH_RESULT = ("xpath", "//div[@class='block_search_result']")  # блок результата поиска
+    BUTTON_FIND = ("xpath", "//div[@id='search']")  # кнопка Найти поиск
+    FOUND_DEVICES_IN_TREE = ("xpath", "//a[contains(@class, 'jstree-search-item')]")  # найденные устройства в дереве
 
 
 
@@ -794,7 +799,81 @@ class OnlineTab(BasePage):
         except Exception as e:
             print(f"Ошибка при проверке удаления группы '{new_name_rename}': {e}")
 
+    # ПОИСК И ПРОВЕРКА ВЫДЕЛЕННЫХ УСТРОЙСТВ В ДЕРЕВЕ
+    @allure.step("Search and verify devices")
+    def search_and_verify_devices(self):
+        try:
+            print("Запуск функции.")
+            print("Ожиданию список устройств.")
 
+            # Ждём, пока список загрузится
+            self.wait.until(EC.presence_of_all_elements_located(self.LIST_DEVICES))
+            device_elements = self.driver.find_elements(*self.LIST_DEVICES)
+            print(f"✓ Найдено {len(device_elements)} устройств.")
+
+            if not device_elements:
+                print("Устройства не найдены.")
+                return
+
+            # Выбираем случайное устройство
+            selected_device_element = random.choice(device_elements)
+            full_name = selected_device_element.text.strip()
+            print(f"Выбрано устройство: {full_name}")
+
+            if len(full_name) < 3:
+                print("Наименование слишком короткое.")
+                return
+
+            first_three_chars = full_name[:3]
+            print(f"Поиск по первым 3 символам: '{first_three_chars}'")
+
+            # Нажимаем кнопку поиска
+            print("Нажимаю кнопку поиск.")
+            search_btn = self.wait.until(EC.element_to_be_clickable(self.BUTTON_SEARCH_DEVICES))
+            search_btn.click()
+
+            # Вводим текст в поле
+            print("Ввод в поле поиска три символа из названия устройств.")
+            search_input = self.wait.until(EC.element_to_be_clickable(self.SEARCH_INPUT))
+            search_input.clear()
+            search_input.send_keys(first_three_chars)
+
+            # Нажимаем кнопку "Найти"
+
+            print("Нажимаем кнопку 'Найти'.")
+            try:
+                find_btn = self.wait.until(EC.element_to_be_clickable(self.BUTTON_FIND))
+
+                # Клик через JavaScript
+                self.driver.execute_script("arguments[0].click();", find_btn)
+
+                print("Кнопка 'Найти' нажата.")
+            except TimeoutException:
+                print("Ошибка: кнопка 'Найти' не стала кликабельной.")
+                return
+
+            print("Ожидаю выделенные устройства в дереве.")
+            time.sleep(1)  # надо, чтобы успело обновиться
+            try:
+                highlighted_elements = self.wait.until(EC.presence_of_all_elements_located(self.FOUND_DEVICES_IN_TREE))
+                print(f"Найдено {len(highlighted_elements)} выделенных устройств в дереве.")
+
+                print("Выделенные устройства:")
+                for elem in highlighted_elements:
+                    print(f"- {elem.text}")
+            except TimeoutException:
+                print("Выделенные устройства не найдены в дереве.")
+
+            # Проверяем результат
+
+            print("Шаг 5: Проверка результата в поисковом блоке.")
+            result_elem = self.wait.until(EC.presence_of_element_located(self.BLOG_SEARCH_RESULT))
+            result_text = result_elem.text
+            print(f"Текст результата: '{result_text}'")
+
+            print("Функция завершена успешно.")
+        except Exception as e:
+            print(f"Ошибка: {type(e).__name__}: {e}")
 
 
 
