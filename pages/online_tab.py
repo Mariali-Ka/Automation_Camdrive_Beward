@@ -895,7 +895,7 @@ class OnlineTab(BasePage):
             all_names = [elem.text.strip() for elem in device_elements]
 
             # Генерируем рандомный поисковый запрос, которого нет среди названий
-            search_query = self.generate_random_code(length=5)  # или любая другая длина
+            search_query = self.generate_random_code(length=5)
             while any(search_query in name for name in all_names):
                 search_query = self.generate_random_code(length=5)
 
