@@ -875,5 +875,79 @@ class OnlineTab(BasePage):
         except Exception as e:
             print(f"Ошибка: {type(e).__name__}: {e}")
 
+    # НЕГАТИВНАЯ ПРОВЕРКА ПОИСКА УСТРОЙСТВ В ДЕРЕВЕ
+    @allure.step("Negative device search check")
+    def negative_device_search_check(self):
+        try:
+            print("Запуск функции.")
+            print("Ожидаем список устройств.")
+
+            # Ждём, пока список загрузится
+            self.wait.until(EC.presence_of_all_elements_located(self.LIST_DEVICES))
+            device_elements = self.driver.find_elements(*self.LIST_DEVICES)
+            print(f"✓ Найдено {len(device_elements)} устройств.")
+
+            if not device_elements:
+                print("Устройства не найдены.")
+                return
+
+            # Собираем все названия устройств в один список
+            all_names = [elem.text.strip() for elem in device_elements]
+
+            # Генерируем рандомный поисковый запрос, которого нет среди названий
+            search_query = self.generate_random_code(length=5)  # или любая другая длина
+            while any(search_query in name for name in all_names):
+                search_query = self.generate_random_code(length=5)
+
+            print(f"Поиск по рандомному запросу: '{search_query}'")
+
+            # Нажимаем кнопку поиска
+            print("Нажимаем кнопку поиска.")
+            search_btn = self.wait.until(EC.element_to_be_clickable(self.BUTTON_SEARCH_DEVICES))
+            search_btn.click()
+
+            # Вводим текст в поле
+            print("Ввод в поле поиска рандомные символы.")
+            search_input = self.wait.until(EC.element_to_be_clickable(self.SEARCH_INPUT))
+            search_input.clear()
+            search_input.send_keys(search_query)
+
+            # Нажимаем кнопку "Найти"
+            print("Нажимаем кнопку 'Найти'.")
+            try:
+                find_btn = self.wait.until(EC.element_to_be_clickable(self.BUTTON_FIND))
+
+                # Клик через JavaScript
+                self.driver.execute_script("arguments[0].click();", find_btn)
+
+                print("Кнопка 'Найти' нажата.")
+            except TimeoutException:
+                print("Ошибка: кнопка 'Найти' не стала кликабельной.")
+                return
+
+            print("Ожидаем выделенных устройств в дереве.")
+            time.sleep(1)  # Нужно, чтобы элементы точно обновились
+            try:
+                highlighted_elements = self.wait.until(EC.presence_of_all_elements_located(self.FOUND_DEVICES_IN_TREE))
+                if len(highlighted_elements) > 0:
+                    print(
+                        f"Найдено {len(highlighted_elements)} выделенных устройств, хотя поиск был по несуществующему запросу.")
+                    print("Выделенные устройства:")
+                    for elem in highlighted_elements:
+                        print(f"- {elem.text}")
+                else:
+                    print("Нет выделенных устройств после поиска по несуществующему запросу.")
+            except TimeoutException:
+                print("Выделенные устройства не найдены в дереве (ожидаемое поведение).")
+
+            # Проверяем результат
+            print("Проверка результата в поисковом блоке")
+            result_elem = self.wait.until(EC.presence_of_element_located(self.BLOG_SEARCH_RESULT))
+            result_text = result_elem.text
+            print(f"Текст результата: '{result_text}'")
+
+            print("Функция завершена успешно.")
+        except Exception as e:
+            print(f"Ошибка: {type(e).__name__}: {e}")
 
 

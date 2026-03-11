@@ -96,4 +96,12 @@ class  TestOnlineTab(BaseTest):
         self.authorization_page.click_enter_button()
         self.online_tab.search_and_verify_devices()
 
+    @pytest.mark.smoke
+    def test_negative_device_search_check(self):
+        self.authorization_page.open()
+        self.authorization_page.enter_login(self.login.LOGIN)
+        self.authorization_page.enter_password(self.login.PASSWORD)
+        self.authorization_page.click_enter_button()
+        self.online_tab.negative_device_search_check()
+
 
