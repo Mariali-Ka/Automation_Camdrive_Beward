@@ -9,6 +9,7 @@ from selenium.common import TimeoutException
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service
 import allure
+from threading import Timer
 from base.base_page import BasePage
 from config.links import Links
 from selenium.webdriver.support import expected_conditions as EC
@@ -18,6 +19,7 @@ from selenium.common.exceptions import StaleElementReferenceException
 
 # Настройка Chrome
 chrome_options = webdriver.ChromeOptions()
+chrome_options.add_argument("--incognito")
 chrome_options.add_argument("--disable-blink-features=AutomationControlled")
 chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
 chrome_options.add_experimental_option('useAutomationExtension', False)
@@ -62,10 +64,16 @@ class ArchiveTab(BasePage):
     BUTTON_PLAY_CONTROLBAR = ("xpath", "//div[@class='player-main-controlbar-play']")  # кнопка play в плеере
     LIST_DEVICES = ("xpath", "//li[contains(@rel, 'channel')]")  # список камер
 
+
+
     # ОТКРЫВАЕМ ВКЛАДКУ АРХИВ
     @allure.step("Go to archive tab")
     def click_go_to_archive_tab(self):
         self.wait.until(EC.element_to_be_clickable(self.TAB_ARCHIVE)).click()
+        time.sleep(2)
+        self.press_enter_to_accept_modal()
+
+
 
     # ПРОВЕРКА, ЧТО ОТКРЫТА ВКЛАДКА АРХИВ
     @allure.step("Is Opened Archive Tab")

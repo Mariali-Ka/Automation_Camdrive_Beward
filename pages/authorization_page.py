@@ -1,6 +1,7 @@
 import random
 import time
 import allure
+import pyautogui
 from base.base_page import BasePage
 from config.links import Links
 from selenium.webdriver.support import expected_conditions as EC
@@ -36,7 +37,7 @@ class AuthorizationPersonalAccount(BasePage):
         url = self.PAGE_URL
         assert url == Links.HOST_PAGE, "Ошибка в URL, открыта не та страница"
 
-    # В ПОЛЕ ДОГИН ВВОДИМ ЛОГИН
+    # В ПОЛЕ ЛОГИН ВВОДИМ ЛОГИН
     @allure.step("Enter login")
     def enter_login(self, login):
         self.wait.until(EC.element_to_be_clickable(self.LOGIN_FIELD)).send_keys(login)
@@ -80,10 +81,22 @@ class AuthorizationPersonalAccount(BasePage):
     def checkbox_remember_me(self):
         self.wait.until(EC.element_to_be_clickable(self.CHECKBOX_REMEMBER_ME)).click()
 
-    # НАЖАТЬ НА КНОПКУ ВОЙТИ
-    @allure.step("Click enter button")
+    # НАЖАТЬ НА КНОПКУ ВОЙТИ И ОБРАБОТАТЬ СИСТЕМНОЕ ОКНО CHROME
+    @allure.step("Click enter button and handle Chrome alert")
     def click_enter_button(self):
         self.wait.until(EC.element_to_be_clickable(self.ENTER_BUTTON)).click()
+        # Микропауза, чтобы Chrome успел отрисовать нативное окно поверх страницы
+        time.sleep(1.0)
+
+        # Закрываем нативное модальное окно эмуляцией клавиши ESCAPE (или ENTER)
+        try:
+            pyautogui.press('enter')
+            print("[INFO] Системная клавиша ENTER успешно отправлена через pyautogui.")
+
+            # На всякий случай даем браузеру 0.5 секунды развиснуть и продолжить загрузку
+            time.sleep(0.5)
+        except Exception as e:
+            print(f"[WARNING] Ошибка при отправке клавиши через pyautogui: {e}")
 
     # ПРОВЕРКА ПОЯВЛЕНИЯ СООБЩЕНИЯ НЕВЕРНОЙ АВТОРИЗАЦИИ. ПРОВЕРКА, ЧТО ОТКРЫТА ФОРМА АВТОРИЗАЦИИ
     @allure.step("Negative authorization")

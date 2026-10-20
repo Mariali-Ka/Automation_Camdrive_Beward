@@ -6,6 +6,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 
 
+
 class BasePage:
 
     def __init__(self, driver):
@@ -24,6 +25,43 @@ class BasePage:
     def is_opened(self):
         with allure.step(f"Page {self.PAGE_URL} is opened"):
             self.wait.until(EC.url_to_be(self.PAGE_URL))
+
+    # Проверяем, что нет модальных окон
+    def close_password_breach_modal(self):
+        """Пытается закрыть модальное окно 'Смените пароль' от Chrome"""
+        locators = [
+            ("xpath", "//button[contains(., 'OK') or contains(., 'ОК')]"),
+            ("xpath", "//div[@role='dialog']//button[contains(text(), 'OK')]"),
+            ("xpath", "//*[contains(text(), 'Смените пароль')]/following::button[1]"),
+            ("css selector", "button[class*='ok'], button:contains('OK'), .modal-button.ok")
+        ]
+        for by, locator in locators:
+            try:
+                el = self.driver.find_element(by, locator)
+                el.click()
+                print("✅ Модальное окно 'Смените пароль' закрыто.")
+                return True
+            except:
+                continue
+        print("❌ Модальное окно не найдено.")
+        return False
+
+    # Закрываем модальное окно с помощью Enter
+    def press_enter_to_accept_modal(self):
+        """Нажимает Enter — часто закрывает нативные модальные окна Chrome"""
+        from selenium.webdriver.common.keys import Keys
+        try:
+            # Отправляем Enter в активное окно/фокус
+            self.driver.switch_to.active_element.send_keys(Keys.ENTER)
+            print("✅ Нажат Enter — модальное окно, возможно, закрыто.")
+        except Exception as e:
+            print(f"⚠️ Не удалось отправить Enter: {e}")
+            # Альтернатива: глобальный send_keys к body
+            try:
+                self.driver.find_element(By.TAG_NAME, "body").send_keys(Keys.ENTER)
+                print("✅ Enter отправлен через body.")
+            except:
+                pass
 
     # Подтвержение скриншотом
     def make_screenshot(self, screenshot_name):
@@ -109,7 +147,3 @@ class BasePage:
     def wait_until_clickable(self, locator):
         return self.wait.until(EC.element_to_be_clickable(locator))
 
-    # @allure.step('Open new window')
-    # def open_new_window(self):
-    #     self.driver.new_window("tab")
-    #     self.driver.get("https://x.camdrive.com/")
