@@ -270,10 +270,20 @@ class ArchiveTab(BasePage):
             raise
 
         print("Проверка выделения...")
-        class_attr = a_element.get_attribute("class") or ""
-        print(f"Классы элемента: {class_attr}")
-        assert "jstree-clicked" in class_attr, f"Камера не выделилась. Классы: {class_attr}"
-        print("Камера успешно выделена.")
+        # Даем сайту до 10 секунд (в рамках вашего self.wait), чтобы присвоить класс 'jstree-clicked'
+        try:
+            self.wait.until(lambda d: "jstree-clicked" in (a_element.get_attribute("class") or ""))
+            print("Камера успешно выделена.")
+        except Exception:
+            # Если время вышло, берем класс для вывода точной ошибки в отчет
+            class_attr = a_element.get_attribute("class") or ""
+            assert "jstree-clicked" in class_attr, f"Камера не выделилась за отведенное время. Текущие классы: {class_attr}"
+
+        # print("Проверка выделения...")
+        # class_attr = a_element.get_attribute("class") or ""
+        # print(f"Классы элемента: {class_attr}")
+        # assert "jstree-clicked" in class_attr, f"Камера не выделилась. Классы: {class_attr}"
+        # print("Камера успешно выделена.")
 
     # ПРОВЕРКА ВОСПРОИЗВЕДЕНИЯ В ОДНОМ РАНДОМНОМ ДНЕ РАНДОМНО ОДИН ФРАГМЕНТ ЗАПИСИ
     allure.step("Viewing fragment from camera")

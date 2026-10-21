@@ -25,7 +25,7 @@ class TestAuthorizationPersonalAccount(BaseTest):
         self.authorization_page.enter_login(self.login.LOGIN)
         self.authorization_page.enter_wrong_password(f"Test {random.randint(1, 100)}")
         self.authorization_page.click_eye_button()
-        self.authorization_page.click_enter_button()
+        self.authorization_page.click_enter_button_negative(is_positive=False)
         self.authorization_page.make_screenshot("Input Error")
         self.authorization_page.negative_authorization()
 

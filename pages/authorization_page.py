@@ -81,14 +81,15 @@ class AuthorizationPersonalAccount(BasePage):
     def checkbox_remember_me(self):
         self.wait.until(EC.element_to_be_clickable(self.CHECKBOX_REMEMBER_ME)).click()
 
-    # НАЖАТЬ НА КНОПКУ ВОЙТИ И ОБРАБОТАТЬ СИСТЕМНОЕ ОКНО CHROME
+    # НАЖАТЬ НА КНОПКУ ВОЙТИ И ОБРАБОТАТЬ СИСТЕМНОЕ ОКНО CHROME (ЕСЛИ ВХОД УСПЕШНЫЙ)
     @allure.step("Click enter button and handle Chrome alert")
     def click_enter_button(self):
         self.wait.until(EC.element_to_be_clickable(self.ENTER_BUTTON)).click()
+
         # Микропауза, чтобы Chrome успел отрисовать нативное окно поверх страницы
         time.sleep(1.0)
 
-        # Закрываем нативное модальное окно эмуляцией клавиши ESCAPE (или ENTER)
+        # Закрываем нативное модальное окно эмуляцией клавиши ENTER
         try:
             pyautogui.press('enter')
             print("[INFO] Системная клавиша ENTER успешно отправлена через pyautogui.")
@@ -97,6 +98,30 @@ class AuthorizationPersonalAccount(BasePage):
             time.sleep(0.5)
         except Exception as e:
             print(f"[WARNING] Ошибка при отправке клавиши через pyautogui: {e}")
+
+    # НАЖАТЬ НА КНОПКУ ВОЙТИ И ОБРАБОТАТЬ СИСТЕМНОЕ ОКНО CHROME (ЕСЛИ ВХОД УСПЕШНЫЙ) ПРИ НЕГАТИВНОМ ТЕСТЕ
+    @allure.step("Click enter button and handle Chrome alert if positive")
+    def click_enter_button_negative(self, is_positive=True):
+
+        self.wait.until(EC.element_to_be_clickable(self.ENTER_BUTTON)).click()
+
+        if is_positive:
+            time.sleep(1.0)
+            try:
+                pyautogui.press('enter')
+
+                print(f"[INFO] [{self.__class__.__name__}] Системная клавиша ENTER отправлена.")
+                time.sleep(0.5)
+            except Exception as e:
+                print(f"[WARNING] Ошибка pyautogui: {e}")
+        else:
+            print(f"[INFO] [{self.__class__.__name__}] Негативный сценарий: пропуск pyautogui.")
+
+
+
+
+
+
 
     # ПРОВЕРКА ПОЯВЛЕНИЯ СООБЩЕНИЯ НЕВЕРНОЙ АВТОРИЗАЦИИ. ПРОВЕРКА, ЧТО ОТКРЫТА ФОРМА АВТОРИЗАЦИИ
     @allure.step("Negative authorization")
